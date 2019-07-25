@@ -54,7 +54,7 @@ class Canvas():
 
     def addShape(self, shape, center):
         self.N += 1
-        thickness = np.random.randint(1,3)
+        thickness = np.random.randint(8,12)
 
         for ind in range(shape.x.shape[0]-1):
             x = shape.x[ind] + center[0]
@@ -91,6 +91,9 @@ class Canvas():
         self.canvas[II[0][IIrandom0], II[1][IIrandom0], 0] = np.random.randint(0, 254, nsub)
         self.canvas[II[0][IIrandom1], II[1][IIrandom1], 1] = np.random.randint(0, 254, nsub)
         self.canvas[II[0][IIrandom2], II[1][IIrandom2], 2] = np.random.randint(0, 254, nsub)
+
+    def blur(self):
+        self.canvas = cv2.GaussianBlur(self.canvas,(5,5),0)
 
     def __len__(self):
         return self.N
@@ -335,6 +338,9 @@ def makeSampleSet(sampleFiles, maxSampleIndex, refresh):
         canvas = Canvas()
         makeSample(canvas, anno, sampleIndex, 5)
         if len(canvas):
+            canvas.vary()
+            canvas.erode(25)
+            canvas.blur()
             cv2.imwrite(dataFilenameTemplate.format(sampleIndex), canvas.canvas)
             sampleIndex += 1
 
@@ -366,6 +372,8 @@ def showSampleSet():
         INTERACTIVE = True
         if INTERACTIVE:
             canvas.vary()
+            canvas.erode(25)
+            canvas.blur()
             key = canvas.show()
             if key == ord('q'):
                 done = True
@@ -380,13 +388,13 @@ if __name__ == '__main__':
     CANVAS SIZE IS CHANGED, E.G. 1.2M X 1.2M CENTERS AND BOX SIZES WILL NEED TO BE
     NORMALIZED TO REPRESENT FRACTIONS OF THE IMAGE."""
 
-    BUILD = False
+    BUILD = True
     if BUILD:
-        maxSampleIndex = 10000
+        maxSampleIndex = 5000
         sampleFiles = ("../data/TwoShapes", "test1", "train")
         makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
 
-        maxSampleIndex = 1000
+        maxSampleIndex = 500
         sampleFiles = ("../data/TwoShapes", "test1", "val")
         makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
     else:
