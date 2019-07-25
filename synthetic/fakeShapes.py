@@ -388,7 +388,7 @@ if __name__ == '__main__':
     CANVAS SIZE IS CHANGED, E.G. 1.2M X 1.2M CENTERS AND BOX SIZES WILL NEED TO BE
     NORMALIZED TO REPRESENT FRACTIONS OF THE IMAGE."""
 
-    BUILD = True
+    BUILD = False
     if BUILD:
         maxSampleIndex = 5000
         sampleFiles = ("../data/TwoShapes", "test1", "train")

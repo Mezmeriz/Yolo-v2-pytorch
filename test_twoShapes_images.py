@@ -71,11 +71,12 @@ def test(opt):
                 ymax = int(min((pred[1] + pred[3]) / height_ratio, height))
                 color = colors[CLASSES.index(pred[5])]
                 cv2.rectangle(output_image, (xmin, ymin), (xmax, ymax), color, 2)
+                cv2.rectangle(output_image, (0,0), (width-1, height-1), (150,150,150), 1)
                 text_size = cv2.getTextSize(pred[5] + ' : %.2f' % pred[4], cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
-                cv2.rectangle(output_image, (xmin, ymin), (xmin + text_size[0] + 3, ymin + text_size[1] + 4), color, -1)
+                # cv2.rectangle(output_image, (xmin, ymin), (xmin + text_size[0] + 3, ymin + text_size[1] + 4), color, -1)
                 cv2.putText(
                     output_image, pred[5] + ' : %.2f' % pred[4],
-                    (xmin, ymin + text_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1,
+                    (xmin, ymin - text_size[1] - 0*4), cv2.FONT_HERSHEY_PLAIN, 1,
                     (255, 255, 255), 1)
                 print("Object: {}, Bounding box: ({},{}) ({},{})".format(pred[5], xmin, xmax, ymin, ymax))
             cv2.imwrite(image_path[:-4] + "_prediction.jpg", output_image)
