@@ -2,10 +2,16 @@ import cv2
 import numpy as np
 from abc import ABC, abstractmethod
 import imutils
+import os
+import shutil
 
-from ._annotations.py import *
+from pathlib import Path
 
-RESOLUTION = 224
+from numpy.compat import os_PathLike
+
+from Annotations import *
+
+RESOLUTION = 448
 
 def placement(radii, borders, window = 1):
     """Takes a list of radii,
@@ -44,8 +50,10 @@ def placement(radii, borders, window = 1):
 class Canvas():
     def __init__(self):
         self.canvas = np.zeros((RESOLUTION, RESOLUTION, 3), dtype = np.uint8)
+        self.N = 0
 
     def addShape(self, shape, center):
+        self.N += 1
         thickness = np.random.randint(1,3)
 
         for ind in range(shape.x.shape[0]-1):
@@ -60,6 +68,35 @@ class Canvas():
             y2 = int(y2 * self.canvas.shape[0])
 
             self.canvas = cv2.line(self.canvas, (x,y), (x2, y2), (255, 255, 255), thickness)
+
+    def erode(self, percent = 10):
+        II = np.where(self.canvas > 0)
+        n = II[0].shape[0]
+        IIrandom0 = np.random.randint(0, n, int(n * percent / 100.0))
+        IIrandom1 = np.random.randint(0, n, int(n * percent / 100.0))
+        IIrandom2 = np.random.randint(0, n, int(n * percent / 100.0))
+
+        self.canvas[II[0][IIrandom0], II[1][IIrandom0], 0] = 0
+        self.canvas[II[0][IIrandom1], II[1][IIrandom1], 1] = 0
+        self.canvas[II[0][IIrandom2], II[1][IIrandom2], 2] = 0
+
+    def vary(self, percent = 90):
+        II = np.where(self.canvas > 0)
+        n = II[0].shape[0]
+        nsub = int(n * percent / 100.0)
+        IIrandom0 = np.random.randint(0, n, nsub)
+        IIrandom1 = np.random.randint(0, n, nsub)
+        IIrandom2 = np.random.randint(0, n, nsub)
+
+        self.canvas[II[0][IIrandom0], II[1][IIrandom0], 0] = np.random.randint(0, 254, nsub)
+        self.canvas[II[0][IIrandom1], II[1][IIrandom1], 1] = np.random.randint(0, 254, nsub)
+        self.canvas[II[0][IIrandom2], II[1][IIrandom2], 2] = np.random.randint(0, 254, nsub)
+
+    def __len__(self):
+        return self.N
+
+    def save(self, file):
+        cv2.imwrite(file, self.canvas)
 
     def show(self):
         cv2.imshow('Canvas', cv2.flip(imutils.resize(self.canvas, width = 500), 0))
@@ -132,7 +169,7 @@ class Circle(Shape):
         super().__init__(args)
 
         self.classNumber = Shape.CIRCLE
-        self.name = 'Circle'
+        self.name = 'circle'
         self.minFraction = 0.25
         self.borders = (0.01, 0.01)
 
@@ -151,7 +188,7 @@ class Circle(Shape):
         self.y = R * np.sin(theta)
 
     def bbox(self):
-        return (self.radius, self.radius)
+        return (self.radius*2, self.radius*2)
 
 class Rectangle(Shape):
 
@@ -159,7 +196,7 @@ class Rectangle(Shape):
         super().__init__(args)
 
         self.classNumber = Shape.RECTANGLE
-        self.name = 'Rectangle'
+        self.name = 'rectangle'
         self. minFraction = 0.8
         self.borders = (self.w, self.h)
 
@@ -244,7 +281,7 @@ def selector():
     else:
         assert("Really?")
 
-def makeSample(canvas, N=5):
+def makeSample(canvas, annotation, sampleIndex, N=5):
     """Makes a sample with N objects intended.
     If the random sizes fail to find a solution, fewer are possible."""
 
@@ -269,20 +306,88 @@ def makeSample(canvas, N=5):
         c = shapes[ind].modify(percentage, centers[ind])
         if c is not None and centers[ind][0] != -1:
             canvas.addShape(c, center=centers[ind])
+            if annotation is not None:
+                annotation.add(sampleIndex, c.name, c.classNumber, centers[ind], c.bbox())
 
+def convertSampleFiles(sampleFiles):
+    path = Path(sampleFiles[0])
+    annotationFilename = path / "annotations" / (sampleFiles[1] + "_{}.pkl".format(sampleFiles[2]))
+    dataFilenameTemplate = path / "images" / sampleFiles[2] / (sampleFiles[1] + "_{:05d}.png")
+    if not path.exists():
+        os.makedirs()(path)
+    if not (path / "annotations" ).exists():
+        os.makedirs(annotationFilename.parent)
+    if not (path / "images" / sampleFiles[2]).exists():
+        os.makedirs(dataFilenameTemplate.parent)
+
+    print("Annotation file: {}".format(annotationFilename.as_posix()))
+    print("Data file template: {}".format(dataFilenameTemplate.as_posix()))
+
+    return annotationFilename, dataFilenameTemplate.as_posix()
+
+def makeSampleSet(sampleFiles, maxSampleIndex, refresh):
+    done = False
+    sampleIndex = 0
+    annotationFilename, dataFilenameTemplate = convertSampleFiles(sampleFiles)
+    anno = Annotations(annotationFilename, refresh)
+
+    while (not done):
+        canvas = Canvas()
+        makeSample(canvas, anno, sampleIndex, 5)
+        if len(canvas):
+            cv2.imwrite(dataFilenameTemplate.format(sampleIndex), canvas.canvas)
+            sampleIndex += 1
+
+        INTERACTIVE = False
+        if INTERACTIVE:
+
+            key = canvas.show()
+            if key == ord('q'):
+                done = True
+        else:
+            if sampleIndex >= maxSampleIndex:
+                done = True
+
+        if sampleIndex % 100 == 0:
+            print(".", end="", flush=True)
+        if sampleIndex % 1000 == 0:
+            print("\n{}".format(sampleIndex // 1000), end="", flush=True)
+
+    cv2.destroyAllWindows()
+    anno.save()
+
+def showSampleSet():
+    done = False
+
+    while (not done):
+        canvas = Canvas()
+        makeSample(canvas, None, None, 5)
+
+        INTERACTIVE = True
+        if INTERACTIVE:
+            canvas.vary()
+            key = canvas.show()
+            if key == ord('q'):
+                done = True
+
+
+    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
+    """Note: Currently the canvas size represents 1m x 1m. Centers and box sizes
+    are in meters, but coincidentally are fractions of the image size. IF THE 
+    CANVAS SIZE IS CHANGED, E.G. 1.2M X 1.2M CENTERS AND BOX SIZES WILL NEED TO BE
+    NORMALIZED TO REPRESENT FRACTIONS OF THE IMAGE."""
 
-    done = False
-    anno = Annotations()
-    while (not done):
-        canvas = Canvas()
-        makeSample(canvas, 5)
+    BUILD = False
+    if BUILD:
+        maxSampleIndex = 10000
+        sampleFiles = ("../data/TwoShapes", "test1", "train")
+        makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
 
-
-        key = canvas.show()
-        if key == ord('q'):
-            done = True
-
-    cv2.destroyAllWindows()
+        maxSampleIndex = 1000
+        sampleFiles = ("../data/TwoShapes", "test1", "val")
+        makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
+    else:
+        showSampleSet()
