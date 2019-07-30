@@ -43,6 +43,6 @@ class TwoShapesDataset(Dataset):
         # image, objects = transformations((image, objects))
         x = self.anno[item]
         objects = np.vstack([x["xc"], x["yc"], x["bx"], x["by"], x["catID"]]).T
-        objects[:,0:4] = objects[:,0:4] * 448
+        objects[:,0:4] = objects[:,0:4]
         return np.transpose(np.array(image, dtype=np.float32), (2, 0, 1)), np.array(objects, dtype=np.float32)
     

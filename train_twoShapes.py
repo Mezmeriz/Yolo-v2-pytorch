@@ -39,9 +39,9 @@ def get_args():
     parser.add_argument("--train_set", type=str, default="train")
     parser.add_argument("--test_set", type=str, default="val")
     parser.add_argument("--year", type=str, default="2014", help="The year of dataset (2014 or 2017)")
-    parser.add_argument("--data_path", type=str, default="data/TwoShapes", help="the root folder of dataset")
+    parser.add_argument("--data_path", type=str, default="/home/sadams/dataNeural/yolo1", help="the root folder of dataset")
     parser.add_argument("--pre_trained_model_type", type=str, choices=["model", "params", "none"], default="model")
-    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/whole_model_trained_yolo_coco")
+    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models_archive/whole_model_trained_yolo_coco")
     parser.add_argument("--log_path", type=str, default="tensorboard/yolo_twoShapes")
     parser.add_argument("--saved_path", type=str, default="trained_models")
 
