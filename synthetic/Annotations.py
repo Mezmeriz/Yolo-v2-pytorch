@@ -55,8 +55,8 @@ class AnnotationsCombined(Annotations):
 
         if subdir is not None:
             self.df = self.df[self.df['type']==subdir]
-        self.imagePool = self.df['imageIndex'].unique()
-        self.N = self.imagePool.shape[0]
+        self.imagePoolRows = self.df[['filePrefix', 'imageIndex']].drop_duplicates().index.tolist()
+        self.N = len(self.imagePoolRows)
 
     def add(self, file, files, annoRow, setType):
         index = 1
@@ -90,10 +90,18 @@ class AnnotationsCombined(Annotations):
             for annoRow in annoSource[annoSource['imageIndex']==ifor].itertuples(name=None):
                 self.add(file, files, annoRow, setType)
 
-    def getImagePrefix(self, item):
-        return
+    def getImageInfo(self, item):
+        imageRow = self.imagePoolRows[item]
+        imagePrefix = self.df.ix[imageRow, 'filePrefix']
+        imageNumber = self.df.ix[imageRow, 'imageIndex']
+        rootPath = Path(self.source).parent
+        return imageFileFromIndex(rootPath, imagePrefix, imageNumber).as_posix()
+
     def __getitem__(self, item):
-        return self.df[self.df['imageIndex']==self.imagePool[item]]
+        imageRow = self.imagePoolRows[item]
+        imagePrefix = self.df.ix[imageRow, 'filePrefix']
+        imageNumber = self.df.ix[imageRow, 'imageIndex']
+        return self.df[(self.df['imageIndex']==imageNumber) & (self.df['filePrefix']==imagePrefix)]
 
     def __len__(self):
         return self.N

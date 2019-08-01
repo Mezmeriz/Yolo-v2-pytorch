@@ -14,7 +14,7 @@ print(np.min(xyz, axis = 0))
 print(np.max(xyz, axis = 0))
 sliceWidth = 0.03
 
-for ifor in range(20):
+for ifor in range(40):
     center = [10.85-0.6, 0.5+ifor*0.1, 0.5]
     newxyz = xyz - center
 
