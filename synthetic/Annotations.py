@@ -58,6 +58,7 @@ class AnnotationsCombined(Annotations):
         self.imagePoolRows = self.df[['filePrefix', 'imageIndex']].drop_duplicates().index.tolist()
         self.N = len(self.imagePoolRows)
 
+
     def add(self, file, files, annoRow, setType):
         index = 1
         category = 2
@@ -111,3 +112,4 @@ def annotationFile(rootPath, samplePrefix):
 
 def imageFileFromIndex(rootPath, samplePrefix, ImageIndex):
     return rootPath.parent / "images" / samplePrefix / (samplePrefix + "_{}.png".format(ImageIndex))
+
