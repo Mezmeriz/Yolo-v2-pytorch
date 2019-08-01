@@ -16,10 +16,10 @@ CLASSES = ["circle", "rectangle"]
 def get_args():
     parser = argparse.ArgumentParser("You Only Look Once: Unified, Real-Time Object Detection")
     parser.add_argument("--image_size", type=int, default=448, help="The common width and height for all images")
-    parser.add_argument("--conf_threshold", type=float, default=0.35)
+    parser.add_argument("--conf_threshold", type=float, default=0.7)
     parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--pre_trained_model_type", type=str, choices=["model", "params"], default="model")
-    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/whole_model_trained_yolo_coco")
+    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/model_synth1")
     parser.add_argument("--input", type=str, default="test_images/boiler")
     parser.add_argument("--output", type=str, default="test_images/boiler")
 

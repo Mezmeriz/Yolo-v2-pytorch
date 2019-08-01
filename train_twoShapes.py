@@ -69,10 +69,10 @@ def train(opt):
                    "drop_last": False,
                    "collate_fn": custom_collate_fn}
 
-    training_set = TwoShapesDataset(root_path=opt.data_path, mode=opt.train_set, trainingSet="test1", image_size=opt.image_size)
+    training_set = TwoShapesDataset(root_path=opt.data_path, mode=opt.train_set, trainingSet="annotations", image_size=opt.image_size)
     training_generator = DataLoader(training_set, **training_params)
 
-    test_set = TwoShapesDataset(root_path=opt.data_path, mode=opt.test_set, trainingSet="test1", image_size=opt.image_size, is_training=False)
+    test_set = TwoShapesDataset(root_path=opt.data_path, mode=opt.test_set, trainingSet="annotations", image_size=opt.image_size, is_training=False)
     test_generator = DataLoader(test_set, **test_params)
 
     if torch.cuda.is_available():
