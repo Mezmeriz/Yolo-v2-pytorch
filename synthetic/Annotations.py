@@ -102,4 +102,4 @@ def annotationFile(rootPath, samplePrefix):
     return rootPath.parent / "annotations" / (samplePrefix + "_anno.pkl")
 
 def imageFileFromIndex(rootPath, samplePrefix, ImageIndex):
-    return rootPath.parent / "images" / (samplePrefix + "_{}.png".format(ImageIndex))
+    return rootPath.parent / "images" / samplePrefix / (samplePrefix + "_{}.png".format(ImageIndex))
