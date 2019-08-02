@@ -28,7 +28,7 @@ def get_args():
 
 class Yolo():
 
-    def __init__(opt = get_args()):
+    def __init__(self, opt = get_args()):
         if torch.cuda.is_available():
             if opt.pre_trained_model_type == "model":
                 model = torch.load(opt.pre_trained_model_path)
@@ -46,19 +46,28 @@ class Yolo():
         self.opt = opt
 
     def __call__(self, image):
-            opt = self.opt
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            height, width = image.shape[:2]
-            image = np.transpose(np.array(image, dtype=np.float32), (2, 0, 1))
-            image = image[None, :, :, :]
-            data = Variable(torch.FloatTensor(image))
-            if torch.cuda.is_available():
-                data = data.cuda()
-            with torch.no_grad():
-                logits = model(data)
-                predictions = post_processing(logits, opt.image_size, CLASSES, model.anchors, opt.conf_threshold,
-                                              opt.nms_threshold)
-            return predictions
+        opt = self.opt
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        height, width = image.shape[:2]
+        image = np.transpose(np.array(image, dtype=np.float32), (2, 0, 1))
+        image = image[None, :, :, :]
+        data = Variable(torch.FloatTensor(image))
+        if torch.cuda.is_available():
+            data = data.cuda()
+        with torch.no_grad():
+            logits = self.model(data)
+            predictions = post_processing(logits, opt.image_size, CLASSES, self.model.anchors, opt.conf_threshold,
+                                          opt.nms_threshold)
+        return predictions
+
+class YoloNull():
+
+    def __init__(self, opt = get_args()):
+        pass
+
+    def __call__(self, image):
+        predictions = [[10,10,20,20,0.90,1]]
+        return predictions
 
 
 
