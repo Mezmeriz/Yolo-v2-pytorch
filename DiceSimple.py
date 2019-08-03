@@ -7,7 +7,7 @@ from scipy import spatial
 import cv2
 import matplotlib.pyplot as plt
 
-def slice(xyz, pts, vectors):
+def slice(xyz):
     sliceWidth = 0.03
     newxyz = xyz
     image = np.zeros((448, 448, 3), dtype=np.uint8)
@@ -22,7 +22,7 @@ def slice(xyz, pts, vectors):
         h[h > 0] = 255
         image[:, :, jfor + 1] = h
         cv2.imshow("check", image)
-        cv2.waitKey(10)
+        cv2.waitKey(1)
 
     return image
 
@@ -53,8 +53,28 @@ class Samples():
         self.df.to_pickle(fileName)
 
     def load(self, fileName):
-        df = pd.read_pickle(fileName)
-        return df
+        print("Loading {}".format(fileName))
+        self.df = pd.read_pickle(fileName)
+        print("Length = {} samples".format(self.df.shape[0]))
+        return self.df
+
+    def __getitem__(self, item):
+        if len(self.df):
+            row = self.df.iloc[item]
+            coord = (np.array(row['coord']) - 448//2)/448
+            vectors = row['vectors'].reshape(3,3)
+            xyz = row['xyz']
+            radius = (row['bx'] + row['by'])/4.0/448
+            center = xyz + vectors[:,1] * (coord[1] + radius) + vectors[:,2] * (coord[0] + radius)
+            return (center, radius)
+
+    def __len__(self):
+        if len(self.df):
+            return self.df.shape[0]
+        else:
+            return 0
+
+
 
 class Dice():
     # Vectors
@@ -74,9 +94,11 @@ class Dice():
         print("File loaded with {} points".format(self.xyz.shape[0]))
 
         self.build_KDTree()
-        XYZ = self.defineGrids()
-        self.scanGrids(XYZ)
-        self.samples.save(fileOut)
+        for focusDirection in range(3):
+            print("Focus direction {}: ".format(focusDirection), end="")
+            XYZ = self.defineGrids(focusDirection)
+            self.scanGrids(XYZ, focusDirection)
+            self.samples.save(fileOut)
 
     def build_KDTree(self):
         print("Building kd Tree")
@@ -89,9 +111,9 @@ class Dice():
         region = region - sampleLocation
         projection = np.matmul(region, vec)
 
-        return slice(projection, vec, sampleLocation)
+        return slice(projection)
 
-    def defineGrids(self):
+    def defineGrids(self, focusDirection):
         """
         Make three sets of three dimensional grids.
         Locations and vectors for extraction need to be defined.
@@ -100,42 +122,61 @@ class Dice():
         mins = np.min(self.xyz, axis=0)
         maxs = np.max(self.xyz, axis=0)
         iranges = []
-        stepSizes = [param['bigStep'], param['smallStep'], param['bigStep']]
         for ifor in range(3):
             r = maxs[ifor] - mins[ifor]
-            iranges.append(np.linspace(mins[ifor], maxs[ifor], np.ceil(r / stepSizes[ifor] + 1)))
+            if ifor == focusDirection:
+                stepSize = param['smallStep']
+            else:
+                stepSize = param['bigStep']
+
+                # Only shrink the big step directions
+                if r > param['W']:
+                    mins[ifor] += param['W'] / 2.0
+                    maxs[ifor] -= param['W'] / 2.0
+                    r = r - param['W']
+
+            iranges.append(np.linspace(mins[ifor], maxs[ifor], np.ceil(r / stepSize) + 1))
 
         X, Y, Z = (iranges[0], iranges[1], iranges[2])
         total = np.prod([X.shape[0], Y.shape[0], Z.shape[0]])
-        print('Number of grids = {} x {} x {} = {}'.format(X.shape[0], Y.shape[0], Z.shape[0], total))
+        print('Number of grids = {} x {} x {} = {}: '.format(X.shape[0], Y.shape[0], Z.shape[0], total), end="")
 
         return [X, Y, Z]
 
-    def scanGrids(self, XYZ):
+    def scanGrids(self, XYZ, focusDirection):
         X, Y, Z = tuple(XYZ)
         R = np.sqrt(0.5**2 + 0.5**2 + 0.5**2)
         spot = 0
-        for xi in X:
-            for zi in Z:
-                for yi in Y:
-                    if spot % 100 == 0:
+        x1Index = (focusDirection + 0) % 3
+        x2Index = (focusDirection + 1) % 3
+        x3Index = (focusDirection + 2) % 3
+        for x2 in XYZ[x2Index]:
+            for x3 in XYZ[x3Index]:
+                for x1 in XYZ[x1Index]:
+                    if spot and spot % 100 == 0:
                         print(".", end="", flush=True)
-                    if spot % 1000 == 0:
-                        print("\n", end="", flush=True)
 
-                    loc = np.array([xi, yi, zi])
-                    vectors = Dice.V2
+                    loc = np.zeros((3,))
+                    loc[x1Index] = x1
+                    loc[x2Index] = x2
+                    loc[x3Index] = x3
+
+                    vectors = Dice.VV[focusDirection]
                     sampleImage = self.getSample(loc, vectors, R)
                     predictions = self.model(sampleImage)
                     if len(predictions) != 0:
                         self.samples.add(predictions, loc, vectors)
                     spot = spot + 1
+        print("")
 
 if __name__ == '__main__':
 
-    param = {'bigStep' : 0.75,
-             'smallStep' : 0.06}
+    param = {'bigStep' : 0.65,
+             'smallStep' : 0.06,
+             'W' : 1}
     S = Samples()
     Yolo = Net.Yolo()
-    D = Dice('~/cheap.pcd', '/home/scott/pointsDataFrame.pkl', S, Yolo)
+    #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
+
+    # D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl', S, Yolo)
 
