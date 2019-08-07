@@ -53,6 +53,7 @@ class YoloLoss(nn.modules.loss._Loss):
             anchor_w = anchor_w.cuda()
             anchor_h = anchor_h.cuda()
 
+        # Expressed in terms of feature map coordinates, e.g. 14 x 14 instead of pixels
         pred_boxes[:, 0] = (coord[:, :, 0].detach() + lin_x).view(-1)
         pred_boxes[:, 1] = (coord[:, :, 1].detach() + lin_y).view(-1)
         pred_boxes[:, 2] = (coord[:, :, 2].detach().exp() * anchor_w).view(-1)

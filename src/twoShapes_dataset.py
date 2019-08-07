@@ -35,7 +35,7 @@ class TwoShapesDataset(Dataset):
         imageFile = self.anno.getImageInfo(item)
         image = cv2.imread(imageFile)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
+        image[image > 1] = 255
         # for idx in range(len(objects)):
         #     objects[idx][4] = self.class_ids.index(objects[idx][4])
         # if self.is_training:
@@ -44,8 +44,9 @@ class TwoShapesDataset(Dataset):
         #     transformations = Compose([Resize(self.image_size)])
         # image, objects = transformations((image, objects))
         x = self.anno[item]
-        objects = np.vstack([x["xc"], x["yc"], x["bx"], x["by"], x["catID"]]).T
-        objects[:,0:4] = objects[:,0:4]
+        # TODO go through the code and correctly adjust bx and by
+        # objects = np.vstack([x["xc"], x["yc"], x["bx"], x["by"], x["catID"]]).T
+        objects = self.anno.getBBoxes(item)
         return np.transpose(np.array(image, dtype=np.float32), (2, 0, 1)), np.array(objects, dtype=np.float32)
     
 

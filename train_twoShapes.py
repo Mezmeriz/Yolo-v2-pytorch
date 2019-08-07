@@ -40,10 +40,11 @@ def get_args():
     parser.add_argument("--test_set", type=str, default="val")
     parser.add_argument("--year", type=str, default="2014", help="The year of dataset (2014 or 2017)")
     parser.add_argument("--data_path", type=str, default="/home/sadams/dataNeural/yolo1", help="the root folder of dataset")
-    parser.add_argument("--pre_trained_model_type", type=str, choices=["model", "params", "none"], default="model")
-    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models_archive/whole_model_trained_yolo_coco")
+    parser.add_argument("--pre_trained_model_type", type=str, choices=["model", "params", "none"], default="none")
+    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/whole_model_trained_yolo_coco")
     parser.add_argument("--log_path", type=str, default="tensorboard/yolo_twoShapes")
     parser.add_argument("--saved_path", type=str, default="trained_models")
+    parser.add_argument("--save_file", type=str, default="test_freshModel")
 
     args = parser.parse_args()
     return args
@@ -57,8 +58,9 @@ def train(opt):
     learning_rate_schedule = {"0": 1e-3, "5": 1e-4,
                               "80": 1e-5, "110": 1e-6}
 
-    twoShapesAnchors = [(1.0, 1.0), (3.0, 3.0), (2,7), (7,2),
-                          (2,2)]
+    twoShapesAnchors = [(1.0, 1.0), (3.0, 3.0), (9.0, 9.0), (10.0, 5.0), (5.0, 10.0)]
+    twoShapesAnchors = [(1.3221, 1.73145), (3.19275, 4.00944), (5.05587, 8.09892), (9.47112, 4.84053),
+                          (11.2364, 10.0071)]
     training_params = {"batch_size": opt.batch_size,
                        "shuffle": True,
                        "drop_last": True,
@@ -182,7 +184,7 @@ def train(opt):
                 best_epoch = epoch
                 # torch.save(model, opt.saved_path + os.sep + "trained_yolo_coco")
                 torch.save(model.state_dict(), opt.saved_path + os.sep + "only_params_trained_yolo_coco")
-                torch.save(model, opt.saved_path + os.sep + "whole_model_trained_yolo_coco")
+                torch.save(model, opt.saved_path + os.sep + opt.save_file)
 
             # Early stopping
             if epoch - best_epoch > opt.es_patience > 0:

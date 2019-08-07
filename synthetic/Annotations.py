@@ -55,6 +55,9 @@ class AnnotationsCombined(Annotations):
 
         if subdir is not None:
             self.df = self.df[self.df['type']==subdir]
+        self.refreshPool()
+
+    def refreshPool(self):
         self.imagePoolRows = self.df[['filePrefix', 'imageIndex']].drop_duplicates().index.tolist()
         self.N = len(self.imagePoolRows)
 
@@ -80,6 +83,10 @@ class AnnotationsCombined(Annotations):
         else:
             self.df = self.df.append(df, ignore_index=True)
 
+    def filter(self, column, value):
+        self.df = self.df[self.df[column] == value]
+        self.refreshPool()
+
     def checkFile(self, file):
         if self.df.shape[0] == 0 or len(self.df[self.df['filePrefix']==file])==0:
             return False
@@ -97,6 +104,17 @@ class AnnotationsCombined(Annotations):
         imageNumber = self.df.ix[imageRow, 'imageIndex']
         rootPath = Path(self.source).parent
         return imageFileFromIndex(rootPath, imagePrefix, imageNumber).as_posix()
+
+    def getBBoxes(self, item):
+        sample = self[item]
+        objects = np.vstack([sample["xc"], sample["yc"], sample["bx"], sample["by"], sample["catID"]]).T
+        objects[:, 0] = objects[:, 0] + objects[:, 2] / 2.0 - objects[:, 3] / 2.0
+        objects[:, 1] = objects[:, 1] + objects[:, 3] / 2.0 - objects[:, 2] / 2.0
+        bx = np.copy(objects[:, 2])
+        by = np.copy(objects[:, 3])
+        objects[:, 2] = by
+        objects[:, 3] = bx
+        return objects
 
     def __getitem__(self, item):
         imageRow = self.imagePoolRows[item]

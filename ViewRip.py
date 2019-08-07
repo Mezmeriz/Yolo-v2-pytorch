@@ -43,9 +43,13 @@ class ViewRip():
 
 
 pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
-         ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl')]
+         ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
+         ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl')]
 pair = 1
 
 superPoints = Samples()
 superPoints.load(pairs[pair][1])
+print("Length pre filter {}".format(len(superPoints)))
+superPoints.filter(classNumber='circle')
+print("Length post filter {}".format(len(superPoints)))
 VR = ViewRip(pairs[pair][0], superPoints)

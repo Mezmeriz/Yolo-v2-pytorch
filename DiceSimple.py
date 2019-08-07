@@ -58,6 +58,9 @@ class Samples():
         print("Length = {} samples".format(self.df.shape[0]))
         return self.df
 
+    def filter(self, classNumber):
+        self.df = self.df[self.df['class']==classNumber]
+
     def __getitem__(self, item):
         if len(self.df):
             row = self.df.iloc[item]
@@ -179,4 +182,4 @@ if __name__ == '__main__':
     #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
 
     # D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl', S, Yolo)
-
+    D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)
