@@ -9,9 +9,10 @@ from pathlib import Path
 
 from numpy.compat import os_PathLike
 
-from Annotations import *
+from synthetic.Annotations import *
 
 RESOLUTION = 448
+FLAG_FOR_FAILED_PLACEMENT = -1000
 
 def placement(radii, borders, window = 1):
     """Takes a list of radii,
@@ -25,12 +26,8 @@ def placement(radii, borders, window = 1):
     for circleNumber in range(len(radii)):
         overlap = True
         while overlap:
-            if circleNumber == 0:
-                theta = np.random.random()*np.pi*2.0
-                x, y = (0.5 + radii[0]*np.cos(theta),0.5 + radii[0]*np.sin(theta))
-            else:
-                x = np.random.random() * (window - 2 * borders[circleNumber][0]) + borders[circleNumber][0]
-                y = np.random.random() * (window - 2 * borders[circleNumber][1]) + borders[circleNumber][1]
+            x = np.random.random() * (window - 2 * borders[circleNumber][0]) + borders[circleNumber][0]
+            y = np.random.random() * (window - 2 * borders[circleNumber][1]) + borders[circleNumber][1]
             overlap = False
             for index, center in enumerate(centers):
                 distance = ((center[0] - x)**2 + (center[1] - y)**2)**0.5
@@ -38,8 +35,8 @@ def placement(radii, borders, window = 1):
                     overlap = True
                     fails += 1
             if fails>1000:
-                x = -1
-                y = -1
+                x = FLAG_FOR_FAILED_PLACEMENT
+                y = FLAG_FOR_FAILED_PLACEMENT
                 overlap = False
 
         centers.append([x, y])
@@ -54,7 +51,7 @@ class Canvas():
 
     def addShape(self, shape, center):
         self.N += 1
-        thickness = np.random.randint(8,12)
+        thickness = np.random.randint(5,10)
 
         for ind in range(shape.x.shape[0]-1):
             x = shape.x[ind] + center[0]
@@ -117,6 +114,7 @@ class Shape():
         self.percentage = 100
         self.lines = []
         self.borders = None
+        self.buffer = None
 
         # Override defaults with args
         for k in args.keys():
@@ -142,7 +140,7 @@ class Shape():
         done = False
         count = 0
         while not done:
-            start = np.random.randint(0,N)
+            start = np.random.randint(0, N)
             n = int(N * percentage / 100.0)
             indicies = np.arange(start, start+n) % N
             self.x = x[indicies]
@@ -159,7 +157,7 @@ class Shape():
     def inside(self, center):
         x = self.x + center[0]
         y = self.y + center[1]
-        if np.all((x > self.borders[0]) & (x < 1-self.borders[0])) and np.all((y > self.borders[1]) & (y < 1-self.borders[1])):
+        if np.all((x > self.buffer) & (x < 1-self.buffer)) and np.all((y > self.buffer) & (y < 1-self.buffer)):
             return True
         else:
             return False
@@ -175,6 +173,7 @@ class Circle(Shape):
         self.name = 'circle'
         self.minFraction = 0.25
         self.borders = (0.01, 0.01)
+        self.buffer = 0
 
     def make(self):
         startSegment = np.random.randint(0, Circle.SEGMENTS)
@@ -191,7 +190,7 @@ class Circle(Shape):
         self.y = R * np.sin(theta)
 
     def bbox(self):
-        return (self.radius*2, self.radius*2)
+        return np.array([-self.radius, -self.radius, self.radius, self.radius])
 
 class Rectangle(Shape):
 
@@ -201,7 +200,9 @@ class Rectangle(Shape):
         self.classNumber = Shape.RECTANGLE
         self.name = 'rectangle'
         self. minFraction = 0.8
-        self.borders = (self.w, self.h)
+        buffer = 0.03
+        self.borders = (self.w/2. + buffer, self.h/2. + buffer)
+        self.buffer = buffer
 
     def getBoundingRadius(self):
         return np.sqrt((self.h / 2) ** 2 + (self.w / 2) ** 2)
@@ -238,7 +239,7 @@ class Rectangle(Shape):
         self.y = points[:, 1]
 
     def bbox(self):
-        return (self.w, self.h)
+        return np.array([-self.w/2.0, -self.h/2.0, self.w/2.0, self.h/2.0])
 
 
 def makeArc(radius, cx, cy, start, stop, steps=5):
@@ -266,27 +267,36 @@ def makeCircleInside(center, classIn, **args):
 
 def selector():
     """ Return either a circle or a rectangle"""
-    rectangles = [(5,10), (10,5), (6,6)]
+    # Rectangles expressed in terms of feature sizes, i.e. 1m/14
+    rectangles = [(2, 4), (4, 2), (2,2), (5, 10), (10, 5), (6,6)]
     classNumber = np.random.randint(0,2)
     if classNumber == 0:
-        radius = np.random.randint(1,5)* 2.54e-2;
+        radius = np.random.randint(1, 12)* 2.54e-2;
         height = 0
         width = 0
         shape = Circle(radius = radius)
         return shape, radius
     elif classNumber == 1:
         radius = 0.04
-        height, width = rectangles[np.random.randint(0,3)]
-        height = height * 2.54e-2
-        width = width * 2.54e-2
+        height, width = rectangles[np.random.randint(0, len(rectangles))]
+        fac = 1.0/14
+        height = height * fac
+        width = width * fac
         shape = Rectangle(h = height, w = width)
-        return shape, max(height, width)
+        dim = np.sqrt((height**2)/4. + (width**2)/4.)
+        return shape, dim
     else:
         assert("Really?")
 
-def makeSample(canvas, annotation, sampleIndex, N=5):
+def makeSample(canvas, annotation, sampleIndex, N=1):
     """Makes a sample with N objects intended.
-    If the random sizes fail to find a solution, fewer are possible."""
+    If the random sizes fail to find a solution, fewer are possible.
+
+    Steps
+        1. Randomly select 5 shapes
+        2. Determine placement to avoid overlaps
+        3. Erase some of each shape
+        4. """
 
     radii = []
     shapes = []
@@ -306,21 +316,23 @@ def makeSample(canvas, annotation, sampleIndex, N=5):
             fraction = shapes[ind].minFraction
         percentage = fraction * 100
 
+        allInsidePriorToModify = shapes[ind].inside(centers[ind])
         c = shapes[ind].modify(percentage, centers[ind])
-        if c is not None and centers[ind][0] != -1:
+        if c.inside(centers[ind]) and centers[ind][0] != FLAG_FOR_FAILED_PLACEMENT:
             canvas.addShape(c, center=centers[ind])
             if annotation is not None:
-                annotation.add(sampleIndex, c.name, c.classNumber, centers[ind], c.bbox())
+                annotation.add(sampleIndex, c.name, c.classNumber, c.bbox(), centers[ind])
 
 def convertSampleFiles(sampleFiles):
-    path = Path(sampleFiles[0])
-    annotationFilename = path / "annotations" / (sampleFiles[1] + "_{}.pkl".format(sampleFiles[2]))
-    dataFilenameTemplate = path / "images" / sampleFiles[2] / (sampleFiles[1] + "_{:05d}.png")
+    path = Path(os.path.expanduser(sampleFiles[0]))
+    annotationFilename = path / "annotations" / (sampleFiles[1] + "_anno.pkl")
+
+    dataFilenameTemplate = path / "images" / sampleFiles[1] / (sampleFiles[1] + "_{:05d}.png")
     if not path.exists():
-        os.makedirs()(path)
+        os.makedirs(path)
     if not (path / "annotations" ).exists():
         os.makedirs(annotationFilename.parent)
-    if not (path / "images" / sampleFiles[2]).exists():
+    if not (path / "images" / sampleFiles[1]).exists():
         os.makedirs(dataFilenameTemplate.parent)
 
     print("Annotation file: {}".format(annotationFilename.as_posix()))
@@ -336,12 +348,13 @@ def makeSampleSet(sampleFiles, maxSampleIndex, refresh):
 
     while (not done):
         canvas = Canvas()
-        makeSample(canvas, anno, sampleIndex, 5)
+        makeSample(canvas, anno, sampleIndex, 7)
         if len(canvas):
             canvas.vary()
             canvas.erode(25)
             canvas.blur()
-            cv2.imwrite(dataFilenameTemplate.format(sampleIndex), canvas.canvas)
+            fileOut =imageFileFromIndex(Path(os.path.expanduser(sampleFiles[0])) / "annotations" , sampleFiles[1], sampleIndex)
+            cv2.imwrite(fileOut.as_posix(), canvas.canvas)
             sampleIndex += 1
 
         INTERACTIVE = False
@@ -367,7 +380,7 @@ def showSampleSet():
 
     while (not done):
         canvas = Canvas()
-        makeSample(canvas, None, None, 5)
+        makeSample(canvas, None, None, 10)
 
         INTERACTIVE = True
         if INTERACTIVE:
@@ -388,14 +401,10 @@ if __name__ == '__main__':
     CANVAS SIZE IS CHANGED, E.G. 1.2M X 1.2M CENTERS AND BOX SIZES WILL NEED TO BE
     NORMALIZED TO REPRESENT FRACTIONS OF THE IMAGE."""
 
-    BUILD = False
+    BUILD = True
     if BUILD:
-        maxSampleIndex = 5000
-        sampleFiles = ("../data/TwoShapes", "test1", "train")
-        makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
-
-        maxSampleIndex = 500
-        sampleFiles = ("../data/TwoShapes", "test1", "val")
+        maxSampleIndex = 4000
+        sampleFiles = ("~/dataNeural/yolo1", "fakePositive")
         makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
     else:
         showSampleSet()

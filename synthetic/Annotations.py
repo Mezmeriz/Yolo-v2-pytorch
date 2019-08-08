@@ -27,7 +27,7 @@ class Annotations():
         else:
             return 0
 
-    def add(self, index, category, catID,  bbox, center, N):
+    def add(self, index, category, catID,  bbox, center, N=448):
         xc = bbox[0]*N + center[0]
         yc = bbox[1]*N + center[1]
         bx = (bbox[2]-bbox[0])*N
@@ -100,8 +100,8 @@ class AnnotationsCombined(Annotations):
 
     def getImageInfo(self, item):
         imageRow = self.imagePoolRows[item]
-        imagePrefix = self.df.ix[imageRow, 'filePrefix']
-        imageNumber = self.df.ix[imageRow, 'imageIndex']
+        imagePrefix = self.df.iloc[imageRow]['filePrefix']
+        imageNumber = self.df.iloc[imageRow]['imageIndex']
         rootPath = Path(self.source).parent
         return imageFileFromIndex(rootPath, imagePrefix, imageNumber).as_posix()
 
@@ -118,8 +118,8 @@ class AnnotationsCombined(Annotations):
 
     def __getitem__(self, item):
         imageRow = self.imagePoolRows[item]
-        imagePrefix = self.df.ix[imageRow, 'filePrefix']
-        imageNumber = self.df.ix[imageRow, 'imageIndex']
+        imagePrefix = self.df.iloc[imageRow]['filePrefix']
+        imageNumber = self.df.iloc[imageRow]['imageIndex']
         return self.df[(self.df['imageIndex']==imageNumber) & (self.df['filePrefix']==imagePrefix)]
 
     def __len__(self):

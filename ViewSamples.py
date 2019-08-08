@@ -20,10 +20,10 @@ from synthetic.Annotations import AnnotationsCombined as Anno
 # labelMaker = LabelMaker.Label(nnet)
 
 N = 448
-newImageSize = 448
+
 
 def view(anno, viewTime = 0):
-
+    newImageSize = 448
     buf = 2
     ny = int( 1080/(newImageSize+buf))
     nx = int(1920/(newImageSize+buf))
