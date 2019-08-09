@@ -288,6 +288,14 @@ def selector():
     else:
         assert("Really?")
 
+def kludge(bbox):
+    """Annotations from one synthetic source are flipped x/y.
+    the primary annotation setup flips it to correct the data.
+    But that means correctly formed data does not get through.
+    You got the idea. If this is around in a week, please shoot me.
+    """
+    return np.array([bbox[1], bbox[0], bbox[3], bbox[2]])
+
 def makeSample(canvas, annotation, sampleIndex, N=1):
     """Makes a sample with N objects intended.
     If the random sizes fail to find a solution, fewer are possible.
@@ -321,7 +329,7 @@ def makeSample(canvas, annotation, sampleIndex, N=1):
         if c.inside(centers[ind]) and centers[ind][0] != FLAG_FOR_FAILED_PLACEMENT:
             canvas.addShape(c, center=centers[ind])
             if annotation is not None:
-                annotation.add(sampleIndex, c.name, c.classNumber, c.bbox(), centers[ind])
+                annotation.add(sampleIndex, c.name, c.classNumber, kludge(c.bbox()), centers[ind])
 
 def convertSampleFiles(sampleFiles):
     path = Path(os.path.expanduser(sampleFiles[0]))
@@ -401,10 +409,10 @@ if __name__ == '__main__':
     CANVAS SIZE IS CHANGED, E.G. 1.2M X 1.2M CENTERS AND BOX SIZES WILL NEED TO BE
     NORMALIZED TO REPRESENT FRACTIONS OF THE IMAGE."""
 
-    BUILD = True
+    BUILD = False
     if BUILD:
-        maxSampleIndex = 4000
-        sampleFiles = ("~/dataNeural/yolo1", "fakePositive")
+        maxSampleIndex = 1000
+        sampleFiles = ("~/dataNeural/yolo1", "fakePositive1k")
         makeSampleSet(sampleFiles, maxSampleIndex, refresh=True)
     else:
         showSampleSet()

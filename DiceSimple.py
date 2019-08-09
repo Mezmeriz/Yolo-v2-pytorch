@@ -61,6 +61,9 @@ class Samples():
     def filter(self, classNumber):
         self.df = self.df[self.df['class']==classNumber]
 
+    def filterGreater(self, field, value):
+        self.df = self.df[self.df[field]>value]
+
     def __getitem__(self, item):
         if len(self.df):
             row = self.df.iloc[item]
@@ -181,5 +184,5 @@ if __name__ == '__main__':
     Yolo = Net.Yolo()
     #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
 
-    # D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl', S, Yolo)
-    D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)
+    D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl', S, Yolo)
+    # D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)

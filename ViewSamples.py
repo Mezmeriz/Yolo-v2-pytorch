@@ -48,9 +48,11 @@ def view(anno, viewTime = 0):
             currentIndex = index + startIndex
             if currentIndex < len(anno):
                 sample = anno[currentIndex]
-                imgFile = anno.getImageInfo(index+startIndex)
+                imgFile = anno.getImageInfo(currentIndex)
+                print(imgFile)
                 img = cv2.imread(imgFile)
                 objects = anno.getBBoxes(currentIndex)
+                print(sample)
 
                 for boundingBoxIndex in range(len(sample)):
                     xc, yc, bx, by, catID = objects[boundingBoxIndex,:]

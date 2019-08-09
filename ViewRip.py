@@ -21,13 +21,15 @@ def show(xyz, XYZ):
 class ViewRip():
 
     def __init__(self, fileIn, superPoints):
-        fileIn = os.path.expanduser(fileIn)
-        print("Loading file {}".format(fileIn))
-        self.pcd = o3d.io.read_point_cloud(fileIn)
-        self.xyz = np.asarray(self.pcd.points)
-        print("File loaded with {} points".format(self.xyz.shape[0]))
-
-        self.showObjects = [self.pcd]
+        if len(fileIn):
+            fileIn = os.path.expanduser(fileIn)
+            print("Loading file {}".format(fileIn))
+            self.pcd = o3d.io.read_point_cloud(fileIn)
+            self.xyz = np.asarray(self.pcd.points)
+            print("File loaded with {} points".format(self.xyz.shape[0]))
+            self.showObjects = []
+        else:
+            self.showObjects = []
 
         self.superPoints = superPoints
         self.addSamples()
@@ -41,15 +43,18 @@ class ViewRip():
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
 
+if __name__ == '__main__':
+    pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
+             ('', 'superPoints/synthA.pkl')]
+    pair = pairs[-2]
 
-pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
-         ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
-         ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl')]
-pair = 1
-
-superPoints = Samples()
-superPoints.load(pairs[pair][1])
-print("Length pre filter {}".format(len(superPoints)))
-superPoints.filter(classNumber='circle')
-print("Length post filter {}".format(len(superPoints)))
-VR = ViewRip(pairs[pair][0], superPoints)
+    superPoints = Samples()
+    superPoints.load(pair[1])
+    print("Length pre filter {}".format(len(superPoints)))
+    #superPoints.filter(classNumber='circle')
+    superPoints.filterGreater('objectness', 0.9)
+    print("Length post filter {}".format(len(superPoints)))
+    VR = ViewRip(pair[0], superPoints)
