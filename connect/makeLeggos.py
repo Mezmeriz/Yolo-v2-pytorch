@@ -18,10 +18,15 @@ yy = np.zeros_like(xx)
 zz = yy
 xyz = np.vstack([xx, yy, zz]).T
 vectors = np.identity(3)
+predictions = [[[x, y, bx, by, objectness, classNumber]]]
+
+anno.add(predictions, np.array([0,0.8, 0.4]), vectors)
+anno.add(predictions, np.array([0,0.4, 0.8]), vectors)
 
 for ifor in range(N):
-    predictions = [[[x, y, bx, by, objectness, classNumber]]]
+
     anno.add(predictions, xyz[ifor,:], vectors)
+    anno.add(predictions, xyz[ifor, :] + np.array([.8, 0, 0.0]), vectors)
     anno.add(predictions, xyz[ifor,:] + np.array([0,0,0.2]), vectors)
 
 anno.add(predictions, np.array([0,0.4, 0.4]), vectors)

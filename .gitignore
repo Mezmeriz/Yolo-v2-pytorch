@@ -1,3 +1,5 @@
+*.png
+*.json
 venv
 .idea
 __pycache__

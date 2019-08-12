@@ -44,6 +44,7 @@ def nearestNeighbors(superPoints, centers):
     Later, weight the "closest" based on radius and angle too
     """
     epsilon = 1e-4
+    distanceCriteria = 2.2 * 0.06
     for index in range(len(superPoints.df)):
         currentRadius = superPoints.df.at[index, 'radii']
         localCenters = centers - centers[index, :]
@@ -54,13 +55,16 @@ def nearestNeighbors(superPoints, centers):
         if len(IIforward):
             IIforwardMin = np.argmin(distances[IIforward])
             minRadius = superPoints.df.at[IIforward[IIforwardMin],'radii']
-            if IIforwardMin is not None and distances[IIforward][IIforwardMin] < (minRadius + currentRadius):
+            # distanceCriteria = (minRadius + currentRadius)
+            if IIforwardMin is not None and distances[IIforward][IIforwardMin] < distanceCriteria:
                 superPoints.df.at[index, 'head'] = IIforward[IIforwardMin]
             else:
                 print("Failed: Current radius = {:4.1f} cm, distance = {:4.1f} cm".format(currentRadius*1e2, distances[IIforward][IIforwardMin]* 1e2))
         if len(IIbackward):
             IIbackwardMin = np.argmin(distances[IIbackward])
-            if IIbackwardMin is not None and distances[IIbackward][IIbackwardMin] < (minRadius + currentRadius):
+            # distanceCriteria = (minRadius + currentRadius)
+
+            if IIbackwardMin is not None and distances[IIbackward][IIbackwardMin] < distanceCriteria:
                 superPoints.df.at[index, 'tail'] = IIbackward[IIbackwardMin]
             else:
                 print("Failed: Current radius = {:4.1f} cm, distance = {:4.1f} cm".format(currentRadius * 1e2,
@@ -92,10 +96,13 @@ if __name__ == '__main__':
 
     superPoints = DiceSimple.Samples()
     superPoints.load(pair[1])
-    ViewRip.ViewRip("", superPoints)
+
 
     centers = addCenters(superPoints)
     nearestNeighbors(superPoints, centers)
     enumerateChain(superPoints)
     chainCount(superPoints)
+    superPoints = orphanFilter(superPoints, N=1)
     print(superPoints.df.head(20))
+
+    ViewRip.ViewRip("", superPoints)
