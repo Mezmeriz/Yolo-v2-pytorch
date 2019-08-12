@@ -22,5 +22,7 @@ vectors = np.identity(3)
 for ifor in range(N):
     predictions = [[[x, y, bx, by, objectness, classNumber]]]
     anno.add(predictions, xyz[ifor,:], vectors)
+    anno.add(predictions, xyz[ifor,:] + np.array([0,0,0.2]), vectors)
 
+anno.add(predictions, np.array([0,0.4, 0.4]), vectors)
 anno.save('../superPoints/synthA.pkl')

@@ -2,6 +2,7 @@ import open3d as o3d
 import numpy as np
 from DiceSimple import Samples
 import os
+import connect.leggo
 
 def pose(xyz):
     m = np.identity(4)
@@ -55,6 +56,7 @@ if __name__ == '__main__':
     superPoints.load(pair[1])
     print("Length pre filter {}".format(len(superPoints)))
     #superPoints.filter(classNumber='circle')
+    superPoints = connect.leggo.orphanFilter(superPoints, N=3)
     superPoints.filterGreater('objectness', 0.9)
     print("Length post filter {}".format(len(superPoints)))
     VR = ViewRip(pair[0], superPoints)
