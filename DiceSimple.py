@@ -6,6 +6,8 @@ import os
 from scipy import spatial
 import cv2
 import matplotlib.pyplot as plt
+from pyquaternion import Quaternion
+
 
 def slice(xyz):
     sliceWidth = 0.03
@@ -80,7 +82,52 @@ class Samples():
         else:
             return 0
 
+def defineGridsProjected(xyz):
+    """
+    Make three sets of three dimensional grids.
+    Locations and vectors for extraction need to be defined.
+    :return:
+    """
+    mins = np.min(xyz, axis=0)
+    maxs = np.max(xyz, axis=0)
+    iranges = []
+    focusDirection = 0
+    for ifor in range(3):
+        r = maxs[ifor] - mins[ifor]
+        if ifor == focusDirection:
+            stepSize = param['smallStep']
+        else:
+            stepSize = param['bigStep']
 
+            # Only shrink the big step directions
+            if r > param['W']:
+                mins[ifor] += param['W'] / 2.0
+                maxs[ifor] -= param['W'] / 2.0
+                r = r - param['W']
+
+        iranges.append(np.linspace(mins[ifor], maxs[ifor], np.ceil(r / stepSize) + 1))
+
+    X, Y, Z = (iranges[0], iranges[1], iranges[2])
+    total = np.prod([X.shape[0], Y.shape[0], Z.shape[0]])
+    print('Number of grids = {} x {} x {} = {}: '.format(X.shape[0], Y.shape[0], Z.shape[0], total), end="")
+
+    return [X, Y, Z]
+
+
+def makeVectors(theta, elevation):
+
+    theta_quat = Quaternion(axis=[0, 0, 1], angle=theta)
+    vprime = theta_quat.rotate([0, 1., 0.])
+    print(vprime)
+    phi_quat = Quaternion(axis=vprime, angle=-elevation)
+    spherical = phi_quat * theta_quat
+
+    # print("{}\n".format(theta_quat.rotation_matrix))
+    # print("{}\n".format(phi_quat.rotation_matrix))
+    # print("{}\n".format((phi_quat.rotation_matrix).dot(theta_quat.rotation_matrix)))
+    # print("{}\n".format(spherical.rotation_matrix))
+
+    return spherical.rotation_matrix
 
 class Dice():
     # Vectors
@@ -100,11 +147,22 @@ class Dice():
         print("File loaded with {} points".format(self.xyz.shape[0]))
 
         self.build_KDTree()
-        for focusDirection in range(3):
-            print("Focus direction {}: ".format(focusDirection), end="")
-            XYZ = self.defineGrids(focusDirection)
-            self.scanGrids(XYZ, focusDirection)
-            self.samples.save(fileOut)
+
+        fortyFive = np.pi/4
+        for theta in [0, fortyFive, 2*fortyFive, 3*fortyFive]:
+            if theta == 0:
+                eRange = [-fortyFive, 0, fortyFive, 2*fortyFive]
+            else:
+                eRange = [-fortyFive, 0, fortyFive]
+
+            for elevation in eRange:
+                vectors = makeVectors(theta, elevation)
+                projected = self.xyz.dot(vectors)
+                XYZprojected = defineGridsProjected(projected)
+                self.scanGrids(XYZprojected, vectors)
+                self.samples.save(fileOut)
+
+
 
     def build_KDTree(self):
         print("Building kd Tree")
@@ -119,55 +177,21 @@ class Dice():
 
         return slice(projection)
 
-    def defineGrids(self, focusDirection):
-        """
-        Make three sets of three dimensional grids.
-        Locations and vectors for extraction need to be defined.
-        :return:
-        """
-        mins = np.min(self.xyz, axis=0)
-        maxs = np.max(self.xyz, axis=0)
-        iranges = []
-        for ifor in range(3):
-            r = maxs[ifor] - mins[ifor]
-            if ifor == focusDirection:
-                stepSize = param['smallStep']
-            else:
-                stepSize = param['bigStep']
 
-                # Only shrink the big step directions
-                if r > param['W']:
-                    mins[ifor] += param['W'] / 2.0
-                    maxs[ifor] -= param['W'] / 2.0
-                    r = r - param['W']
 
-            iranges.append(np.linspace(mins[ifor], maxs[ifor], np.ceil(r / stepSize) + 1))
-
-        X, Y, Z = (iranges[0], iranges[1], iranges[2])
-        total = np.prod([X.shape[0], Y.shape[0], Z.shape[0]])
-        print('Number of grids = {} x {} x {} = {}: '.format(X.shape[0], Y.shape[0], Z.shape[0], total), end="")
-
-        return [X, Y, Z]
-
-    def scanGrids(self, XYZ, focusDirection):
-        X, Y, Z = tuple(XYZ)
+    def scanGrids(self, XYZ, vectors):
         R = np.sqrt(0.5**2 + 0.5**2 + 0.5**2)
         spot = 0
-        x1Index = (focusDirection + 0) % 3
-        x2Index = (focusDirection + 1) % 3
-        x3Index = (focusDirection + 2) % 3
+        x1Index = 0
+        x2Index = 1
+        x3Index = 2
         for x2 in XYZ[x2Index]:
             for x3 in XYZ[x3Index]:
                 for x1 in XYZ[x1Index]:
                     if spot and spot % 100 == 0:
                         print(".", end="", flush=True)
 
-                    loc = np.zeros((3,))
-                    loc[x1Index] = x1
-                    loc[x2Index] = x2
-                    loc[x3Index] = x3
-
-                    vectors = Dice.VV[focusDirection]
+                    loc = np.array([x1, x2, x3]). dot(np.linalg.inv(vectors))
                     sampleImage = self.getSample(loc, vectors, R)
                     predictions = self.model(sampleImage)
                     if len(predictions) != 0:
@@ -177,12 +201,23 @@ class Dice():
 
 if __name__ == '__main__':
 
-    param = {'bigStep' : 0.65,
-             'smallStep' : 0.06,
-             'W' : 1}
-    S = Samples()
-    Yolo = Net.Yolo()
-    #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
+    Ready = True
+    if Ready:
+        param = {'bigStep' : 0.65,
+                 'smallStep' : 0.06,
+                 'W' : 1}
+        S = Samples()
+        Yolo = Net.Yolo()
+        #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
 
-    D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl', S, Yolo)
-    # D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)
+        D = Dice('~/cheap.pcd', 'superPoints/chunk_cheapC.pkl', S, Yolo)
+        # D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)
+
+
+
+
+
+
+
+
+

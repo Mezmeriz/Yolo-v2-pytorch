@@ -98,7 +98,8 @@ if __name__ == '__main__':
     pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
-             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
+             ('~/cheap.pcd', 'superPoints/chunk_cheapC.pkl'),
+             ('', 'superPoints/chunk_cheapC.pkl'),
              ('', 'superPoints/synthA.pkl')]
     pair = pairs[-2]
 
