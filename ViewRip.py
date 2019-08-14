@@ -46,7 +46,7 @@ class ViewRip():
             center, radius = self.superPoints[ifor]
             if R is None:
                 R = radius
-            sphere = o3d.create_mesh_sphere(R).transform(pose(center))
+            sphere = o3d.create_mesh_sphere(R,8).transform(pose(center))
             sphere.paint_uniform_color([0.1, 0.1, 0.7])
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
@@ -62,7 +62,7 @@ class ViewRip():
         phi_quat = Quaternion(axis=vprime, angle=phi)
         rot = phi_quat.rotation_matrix
 
-        cyl = o3d.create_mesh_cylinder(0.05, length)
+        cyl = o3d.create_mesh_cylinder(0.05, length, resolution=8)
         if rotate:
             cyl = cyl.transform(pose(np.array((start + end) / 2.0), rot))
         #     .transform(pose(center))
@@ -99,7 +99,8 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
              ('~/cheap.pcd', 'superPoints/chunk_cheapC.pkl'),
-             ('', 'superPoints/chunk_cheapC.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
+             ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]
     pair = pairs[-2]
 

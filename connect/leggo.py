@@ -86,6 +86,16 @@ def orphanFilter(superPoints, N=1):
     print("Len after orphan filter {}".format(len(superPoints.df)))
     return superPoints
 
+def makeStraight(superPoints):
+    """
+    Go through each chain.
+    Start one link in if possible
+    go forward until
+    :param superPoints:
+    :return:
+    """
+    NChains = superPoints.df['chain'].max()
+
 if __name__ == '__main__':
     pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
@@ -105,4 +115,5 @@ if __name__ == '__main__':
     superPoints = orphanFilter(superPoints, N=1)
     print(superPoints.df.head(20))
 
-    ViewRip.ViewRip("", superPoints)
+    #ViewRip.ViewRip("", superPoints)
+    print(superPoints.df.keys())

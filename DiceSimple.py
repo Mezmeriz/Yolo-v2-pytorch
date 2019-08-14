@@ -193,9 +193,11 @@ class Dice():
 
                     loc = np.array([x1, x2, x3]). dot(np.linalg.inv(vectors))
                     sampleImage = self.getSample(loc, vectors, R)
-                    predictions = self.model(sampleImage)
-                    if len(predictions) != 0:
-                        self.samples.add(predictions, loc, vectors)
+                    SKIP_NNET = False
+                    if not SKIP_NNET:
+                        predictions = self.model(sampleImage)
+                        if len(predictions) != 0:
+                            self.samples.add(predictions, loc, vectors)
                     spot = spot + 1
         print("")
 
@@ -210,8 +212,8 @@ if __name__ == '__main__':
         Yolo = Net.Yolo()
         #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
 
-        D = Dice('~/cheap.pcd', 'superPoints/chunk_cheapC.pkl', S, Yolo)
-        # D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl', S, Yolo)
+        D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl', S, Yolo)
+        #D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mmB.pkl', S, Yolo)
 
 
 
