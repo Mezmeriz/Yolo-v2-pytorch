@@ -36,7 +36,7 @@ class ViewRip():
             self.showObjects = []
 
         self.superPoints = superPoints
-        self.addSamples(R = 0.055)
+        self.addSamples(R = 0.055/4)
         self.addHeads()
         self.addTails()
         o3d.draw_geometries(self.showObjects)
@@ -52,6 +52,8 @@ class ViewRip():
             self.showObjects.append(sphere)
 
     def addCylinder(self, start, end, rotate=True, color=[0.9, 0.0, 0.3]):
+        DEFAULT_CYLINDER_RADIUS = 0.05/4
+
         length = np.linalg.norm(start - end)
         n = (end - start) / length
         phi = np.arccos(n[2])
@@ -62,7 +64,7 @@ class ViewRip():
         phi_quat = Quaternion(axis=vprime, angle=phi)
         rot = phi_quat.rotation_matrix
 
-        cyl = o3d.create_mesh_cylinder(0.05, length, resolution=8)
+        cyl = o3d.create_mesh_cylinder(DEFAULT_CYLINDER_RADIUS, length, resolution=8)
         if rotate:
             cyl = cyl.transform(pose(np.array((start + end) / 2.0), rot))
         #     .transform(pose(center))
@@ -98,11 +100,11 @@ if __name__ == '__main__':
     pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
-             ('~/cheap.pcd', 'superPoints/chunk_cheapC.pkl'),
+             ('', 'superPoints/chunk_cheapB.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-2]
+    pair = pairs[-4]
 
     superPoints = Samples()
     superPoints.load(pair[1])

@@ -94,7 +94,15 @@ def makeStraight(superPoints):
     :param superPoints:
     :return:
     """
-    NChains = superPoints.df['chain'].max()
+    chains = superPoints.df['chain'].unique()
+    for chain in chains:
+        df = superPoints.df[superPoints.df['chain']==chain]
+        start = df[df['tail'] == -1]
+        end = df[df['head']== -1]
+        length = start['count']
+        if length > 4:
+            pass
+
 
 if __name__ == '__main__':
     pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
