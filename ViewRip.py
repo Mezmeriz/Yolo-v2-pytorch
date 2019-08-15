@@ -36,10 +36,15 @@ class ViewRip():
             self.showObjects = []
 
         self.superPoints = superPoints
-        self.addSamples(R = 0.055/4)
+        self.addSamples(R = 0.055)
         self.addHeads()
         self.addTails()
-        o3d.draw_geometries(self.showObjects)
+        # o3d.draw_geometries(self.showObjects)
+
+        total = self.showObjects[0]
+        for i in range(1,len(self.showObjects)):
+            total += self.showObjects[i]
+        o3d.write_triangle_mesh('test.ply', total)
 
     def addSamples(self, R = None):
         for ifor in range(len(self.superPoints)):
@@ -47,7 +52,7 @@ class ViewRip():
             if R is None:
                 R = radius
             sphere = o3d.create_mesh_sphere(R,8).transform(pose(center))
-            sphere.paint_uniform_color([0.1, 0.1, 0.7])
+            sphere.paint_uniform_color([0.1, 0.9, 0.1])
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
 
@@ -101,6 +106,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
+             ('', 'superPoints/chunk_cheapB.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]

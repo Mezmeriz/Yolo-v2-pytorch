@@ -6,3 +6,5 @@ __pycache__
 trained_model_archive
 trained_models_archive
 junk
+movies
+*.ply

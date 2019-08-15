@@ -152,10 +152,11 @@ class Dice():
         print("File loaded with {} points".format(self.xyz.shape[0]))
 
         # self.build_KDTree()
-
+        Make_Movie = True
+        count = 0
         fortyFive = np.pi/4
-        for theta in [np.pi]:
-            eRange = [0]
+        for theta in [0*np.pi/2]:
+            eRange = [np.pi/2]
 
             for elevation in eRange:
                 vectors = makeVectors(theta, elevation)
@@ -173,6 +174,10 @@ class Dice():
                         image = imutils.resize(image, width = 448*3)
                     else:
                         image = imutils.resize(image, height=1000)
+
+                    if Make_Movie:
+                        cv2.imwrite('movieTMP/img{:04d}.png'.format(count), image)
+                        count += 1
 
                     cv2.imshow("Slice", image)
                     cv2.waitKey(1)
