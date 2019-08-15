@@ -156,7 +156,7 @@ class Dice():
         count = 0
         fortyFive = np.pi/4
         for theta in [0*np.pi/2]:
-            eRange = [np.pi/2]
+            eRange = [0]
 
             for elevation in eRange:
                 vectors = makeVectors(theta, elevation)

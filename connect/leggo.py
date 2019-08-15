@@ -99,9 +99,16 @@ def makeStraight(superPoints):
         df = superPoints.df[superPoints.df['chain']==chain]
         start = df[df['tail'] == -1]
         end = df[df['head']== -1]
-        length = start['count']
+        print(df.head(20))
+        print(start)
+        print(end)
+        length = start.iloc[0]['count']
         if length > 4:
-            pass
+            next = df.loc[start.iloc[0]['head']]
+            angle = determineAngle(df, start, next)
+
+def determineAngle(superPoints, start, next):
+    print("Start {}, next {}".format(start.index.item(), next.index.item()))
 
 
 if __name__ == '__main__':
@@ -121,6 +128,7 @@ if __name__ == '__main__':
     enumerateChain(superPoints)
     chainCount(superPoints)
     superPoints = orphanFilter(superPoints, N=1)
+    makeStraight(superPoints)
     print(superPoints.df.head(20))
 
     #ViewRip.ViewRip("", superPoints)

@@ -22,6 +22,10 @@ def show(xyz, XYZ):
         obs.append(sp)
     o3d.draw_geometries(obs)
 
+COLOR_BLUE = [0,0,1]
+COLOR_GREEN = [0.1, 0.9, 0.1]
+COLOR_RED = [1, 0, 0]
+
 class ViewRip():
 
     def __init__(self, fileIn, superPoints):
@@ -36,15 +40,15 @@ class ViewRip():
             self.showObjects = []
 
         self.superPoints = superPoints
-        self.addSamples(R = 0.055)
+        self.addSamples(R = 0.045)
         self.addHeads()
         self.addTails()
-        # o3d.draw_geometries(self.showObjects)
+        o3d.draw_geometries(self.showObjects)
 
-        total = self.showObjects[0]
-        for i in range(1,len(self.showObjects)):
-            total += self.showObjects[i]
-        o3d.write_triangle_mesh('test.ply', total)
+        # total = self.showObjects[0]
+        # for i in range(1,len(self.showObjects)):
+        #     total += self.showObjects[i]
+        # o3d.write_triangle_mesh('test.ply', total)
 
     def addSamples(self, R = None):
         for ifor in range(len(self.superPoints)):
@@ -52,12 +56,12 @@ class ViewRip():
             if R is None:
                 R = radius
             sphere = o3d.create_mesh_sphere(R,8).transform(pose(center))
-            sphere.paint_uniform_color([0.1, 0.9, 0.1])
+            sphere.paint_uniform_color(COLOR_BLUE)
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
 
     def addCylinder(self, start, end, rotate=True, color=[0.9, 0.0, 0.3]):
-        DEFAULT_CYLINDER_RADIUS = 0.05/4
+        DEFAULT_CYLINDER_RADIUS = 0.05
 
         length = np.linalg.norm(start - end)
         n = (end - start) / length
@@ -85,7 +89,7 @@ class ViewRip():
                 if head != -1:
                     try:
                         end = self.superPoints.df.loc[head].at['centers']
-                        self.addCylinder(start, end)
+                        self.addCylinder(start, end, True, COLOR_BLUE)
                     except:
                         pass
 
@@ -97,7 +101,7 @@ class ViewRip():
                 if head != -1:
                     try:
                         end = self.superPoints.df.loc[head].at['centers']
-                        self.addCylinder(start, end, True, [0,1,0])
+                        self.addCylinder(start, end, True, COLOR_BLUE)
                     except:
                         pass
 
@@ -110,7 +114,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-4]
+    pair = pairs[-5]
 
     superPoints = Samples()
     superPoints.load(pair[1])
