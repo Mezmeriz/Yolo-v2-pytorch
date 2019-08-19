@@ -94,21 +94,86 @@ def makeStraight(superPoints):
     :param superPoints:
     :return:
     """
+    dfKeys = [i for i in superPoints.df.keys()]
+    print(dfKeys)
+    CHAIN = dfKeys.index('chain')
+    HEAD = dfKeys.index('head')
+
+    straightSegments = []
     chains = superPoints.df['chain'].unique()
     for chain in chains:
         df = superPoints.df[superPoints.df['chain']==chain]
-        start = df[df['tail'] == -1]
-        end = df[df['head']== -1]
-        print(df.head(20))
-        print(start)
-        print(end)
-        length = start.iloc[0]['count']
-        if length > 4:
-            next = df.loc[start.iloc[0]['head']]
-            angle = determineAngle(df, start, next)
 
-def determineAngle(superPoints, start, next):
-    print("Start {}, next {}".format(start.index.item(), next.index.item()))
+        # Process chain
+        start = df[df['tail'] == -1]
+        if len(start) == 1:
+            dfPrint = df[['chain', 'head', 'tail', 'count']]
+            print(dfPrint.head(10))
+            startIndex = start.index[0]
+            print("Chain {}: ".format(chain), end="")
+            next = start
+            headNormalStart = headNormal(df, start)
+            inchWormHead = start
+            inchWormSegments = 0
+            thresholdStraightAngleDeg = 40
+            radii = []
+            infiniteLoop = set([])
+
+            while (next is not None and headNormalStart is not None and next.at[next.index[0], 'chain'] == chain and
+                   next.index[0] not in infiniteLoop):
+
+                try:
+                    print("{}, ".format(next.index[0]), end="")
+                    previous = next
+                    next = df.loc[[next.at[next.index[0], 'head']]]
+                    headNormalNext = headNormal(df, next)
+                    if (np.abs(headNormalNext.dot(headNormalStart)) > np.cos(thresholdStraightAngleDeg * np.pi/180)):
+                        infiniteLoop = infiniteLoop.union(set([previous.index[0]]))
+                        inchWormHead = next
+                        inchWormSegments += 1
+                        radius = (next.at[next.index[0], 'bx'] + next.at[next.index[0], 'by'])/4.0 * 1/448.
+                        radii.append(radius)
+                        print("i", end = "")
+                    else:
+                        if inchWormSegments > 2:
+                            straightSegments.append([chain, start.index[0], inchWormHead.index[0], np.median(radii)])
+
+                        infiniteLoop = infiniteLoop.union(set([next.index[0]]))
+                        start = next
+                        inchWormHead = start
+                        inchWormSegments = 0
+                        radii = []
+
+                        # print(np.abs(headNormalNext.dot(headNormalStart)))
+                        # print(headNormalStart)
+                        # print(headNormalNext)
+                        # print()
+
+                except:
+                    next = None
+                    if inchWormSegments > 2:
+                        straightSegments.append([chain, start.index[0], previous.at[previous.index[0], 'head'], np.median(radii)])
+
+                # head = next.at[next.index[0], 'head']
+                # nextIndex = head
+                # next = df.loc[[head]]
+
+                #
+            print("{}".format(infiniteLoop))
+    return straightSegments
+
+def headNormal(df, start):
+    p1 = start.at[start.index[0], 'xyz']
+    head = start.at[start.index[0], 'head']
+
+    if head != -1 and head in df.index.tolist():
+        p2 = df.at[head, 'xyz']
+        # print("P1 {}, P2 {}".format(p1, p2))
+        n = p2 - p1
+        n = n/np.linalg.norm(n)
+        return n
+    else:
+        return None
 
 
 if __name__ == '__main__':
@@ -128,8 +193,7 @@ if __name__ == '__main__':
     enumerateChain(superPoints)
     chainCount(superPoints)
     superPoints = orphanFilter(superPoints, N=1)
-    makeStraight(superPoints)
-    print(superPoints.df.head(20))
+    print(superPoints.df.head(30))
+    straightSegments = makeStraight(superPoints)
+    print(straightSegments)
 
-    #ViewRip.ViewRip("", superPoints)
-    print(superPoints.df.keys())

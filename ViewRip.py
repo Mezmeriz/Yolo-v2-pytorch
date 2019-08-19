@@ -28,7 +28,7 @@ COLOR_RED = [1, 0, 0]
 
 class ViewRip():
 
-    def __init__(self, fileIn, superPoints):
+    def __init__(self, fileIn, superPoints, straightSegments = None):
         if len(fileIn):
             fileIn = os.path.expanduser(fileIn)
             print("Loading file {}".format(fileIn))
@@ -40,9 +40,10 @@ class ViewRip():
             self.showObjects = []
 
         self.superPoints = superPoints
-        self.addSamples(R = 0.045)
+        self.addSamples(R = 0.0145)
         self.addHeads()
         self.addTails()
+        self.addStraight(straightSegments)
         o3d.draw_geometries(self.showObjects)
 
         # total = self.showObjects[0]
@@ -60,8 +61,11 @@ class ViewRip():
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
 
-    def addCylinder(self, start, end, rotate=True, color=[0.9, 0.0, 0.3]):
-        DEFAULT_CYLINDER_RADIUS = 0.05
+    def addCylinder(self, start, end, rotate=True, color=[0.9, 0.0, 0.3], radius = None):
+
+        DEFAULT_CYLINDER_RADIUS = 0.005
+        if radius is None:
+            radius = DEFAULT_CYLINDER_RADIUS
 
         length = np.linalg.norm(start - end)
         n = (end - start) / length
@@ -73,13 +77,20 @@ class ViewRip():
         phi_quat = Quaternion(axis=vprime, angle=phi)
         rot = phi_quat.rotation_matrix
 
-        cyl = o3d.create_mesh_cylinder(DEFAULT_CYLINDER_RADIUS, length, resolution=8)
+        cyl = o3d.create_mesh_cylinder(radius, length, resolution=8)
         if rotate:
             cyl = cyl.transform(pose(np.array((start + end) / 2.0), rot))
         #     .transform(pose(center))
         cyl.paint_uniform_color(color)
         cyl.compute_vertex_normals()
         self.showObjects.append(cyl)
+
+    def addStraight(self, straightSegments):
+        for row in straightSegments:
+            chain, startIndex, endIndex, radius = row
+            start = self.superPoints.df.loc[startIndex].at['centers']
+            end = self.superPoints.df.loc[endIndex].at['centers']
+            self.addCylinder(start, end, True, COLOR_RED, radius)
 
     def addHeads(self):
         if "head" in self.superPoints.df.keys():
@@ -114,7 +125,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-5]
+    pair = pairs[-4]
 
     superPoints = Samples()
     superPoints.load(pair[1])
@@ -124,6 +135,9 @@ if __name__ == '__main__':
     superPoints = connect.leggo.orphanFilter(superPoints, N=3)
 
     print("Length post filter {}".format(len(superPoints)))
-    VR = ViewRip(pair[0], superPoints)
+
+    straightSegments = connect.leggo.makeStraight(superPoints)
+    if len(straightSegments):
+        VR = ViewRip(pair[0], superPoints, straightSegments)
     print(superPoints.df.head(100))
     print(superPoints.df.keys())
