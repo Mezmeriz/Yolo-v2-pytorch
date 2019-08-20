@@ -20,15 +20,23 @@ def addCenters(superPoints):
     superPoints.df['tail'] = np.zeros((N, 1), dtype = np.int) + -1
     superPoints.df['chain'] = np.zeros((N, 1), dtype = np.int) + -1
     superPoints.df['count'] = np.zeros((N, 1), dtype=np.int) + -1
+    superPoints.df['tailFlag'] = np.zeros((N, 1), dtype=np.bool)
+    superPoints.df['headFlag'] = np.zeros((N, 1), dtype=np.bool)
+
     return np.vstack(centers)
 
 def follow(direction, superPoints, index, chain):
     while superPoints.df.at[index, (direction)] != -1:
+        previousIndex = index
         index = superPoints.df.at[index, (direction)]
         if superPoints.df.at[index, ('chain')] == -1:
             superPoints.df.at[index, 'chain'] = chain
         else:
+            superPoints.df.at[previousIndex, (direction + "Flag")] = True
             break
+
+    if superPoints.df.at[index, (direction)] == -1:
+        superPoints.df.at[index, (direction + "Flag")] = True
 
 def enumerateChain(superPoints):
     chain = 0
@@ -101,14 +109,17 @@ def makeStraight(superPoints):
 
     straightSegments = []
     chains = superPoints.df['chain'].unique()
+    inspectChain = -1000
     for chain in chains:
+
+
         df = superPoints.df[superPoints.df['chain']==chain]
         addedSegment = False
 
         # Process chain
-        start = df[df['tail'] == -1]
+        start = df[df['tailFlag']]
         if len(start) > 0:
-            dfPrint = df[['chain', 'head', 'tail', 'count']]
+            dfPrint = df[['chain', 'head', 'tail', 'count', 'tailFlag', 'headFlag']]
             print(dfPrint.head(50))
             startIndex = start.index.tolist()[0]
             print("Chain {}: ".format(chain), end="")

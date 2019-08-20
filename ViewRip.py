@@ -43,7 +43,8 @@ class ViewRip():
         self.addSamples(R = 0.0145, chain= chain)
         self.addHeads()
         self.addTails()
-        self.addStraight(straightSegments)
+        if straightSegments is not None:
+            self.addStraight(straightSegments)
         o3d.draw_geometries(self.showObjects)
         # pp = self.getPickedPoints()
         # print(pp)
@@ -153,8 +154,17 @@ if __name__ == '__main__':
 
     print("Length post filter {}".format(len(superPoints)))
 
+
+    import Chains
+    C = Chains.Chains(superPoints.df)
+    C.save('tmp/chain981.pkl')
+
+
     straightSegments = connect.leggo.makeStraight(superPoints)
+    # straightSegments = []
     if len(straightSegments):
         VR = ViewRip(pair[0], superPoints, straightSegments, chain = 981)
+    else:
+        VR = ViewRip(pair[0], superPoints)
     print(superPoints.df.head(100))
     print(superPoints.df.keys())
