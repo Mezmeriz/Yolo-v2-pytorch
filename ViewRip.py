@@ -28,7 +28,7 @@ COLOR_RED = [1, 0, 0]
 
 class ViewRip():
 
-    def __init__(self, fileIn, superPoints, straightSegments = None):
+    def __init__(self, fileIn, superPoints, straightSegments = None, chain = None):
         if len(fileIn):
             fileIn = os.path.expanduser(fileIn)
             print("Loading file {}".format(fileIn))
@@ -40,24 +40,41 @@ class ViewRip():
             self.showObjects = []
 
         self.superPoints = superPoints
-        self.addSamples(R = 0.0145)
+        self.addSamples(R = 0.0145, chain= chain)
         self.addHeads()
         self.addTails()
         self.addStraight(straightSegments)
         o3d.draw_geometries(self.showObjects)
+        # pp = self.getPickedPoints()
+        # print(pp)
+
 
         # total = self.showObjects[0]
         # for i in range(1,len(self.showObjects)):
         #     total += self.showObjects[i]
         # o3d.write_triangle_mesh('test.ply', total)
 
-    def addSamples(self, R = None):
+    def getPickedPoints(self):
+        vis = o3d.visualization.VisualizerWithEditing()
+        vis.create_window()
+        vis.add_geometry(self.showObjects)
+        vis.run()  # user picks points
+        vis.destroy_window()
+
+    def addSamples(self, R = None, chain = None):
+        CHAIN = [i for i in self.superPoints.df.keys()].index('chain')
         for ifor in range(len(self.superPoints)):
             center, radius = self.superPoints[ifor]
+            chainiFor = self.superPoints.df.iloc[ifor, CHAIN]
             if R is None:
                 R = radius
             sphere = o3d.create_mesh_sphere(R,8).transform(pose(center))
-            sphere.paint_uniform_color(COLOR_BLUE)
+
+            if chain is not None and chainiFor == chain:
+                sphere.paint_uniform_color(COLOR_GREEN)
+            else:
+                sphere.paint_uniform_color(COLOR_BLUE)
+
             sphere.compute_vertex_normals()
             self.showObjects.append(sphere)
 
@@ -131,13 +148,13 @@ if __name__ == '__main__':
     superPoints.load(pair[1])
     print("Length pre filter {}".format(len(superPoints)))
     #superPoints.filter(classNumber='circle')
-    #superPoints.filterGreater('objectness', 0.3)
+    superPoints.filterGreater('objectness', 0.5)
     superPoints = connect.leggo.orphanFilter(superPoints, N=3)
 
     print("Length post filter {}".format(len(superPoints)))
 
     straightSegments = connect.leggo.makeStraight(superPoints)
     if len(straightSegments):
-        VR = ViewRip(pair[0], superPoints, straightSegments)
+        VR = ViewRip(pair[0], superPoints, straightSegments, chain = 981)
     print(superPoints.df.head(100))
     print(superPoints.df.keys())

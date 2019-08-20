@@ -48,7 +48,7 @@ def nearestNeighbors(superPoints, centers):
     for index in range(len(superPoints.df)):
         currentRadius = superPoints.df.at[index, 'radii']
         localCenters = centers - centers[index, :]
-        localCenters = localCenters.dot(superPoints.df.iloc[index]['vectors'].reshape((3,3)))
+        localCenters = localCenters.dot(superPoints.df.iloc[index]['vectors'].reshape((3, 3)))
         IIforward = np.where(localCenters[:, 0] > epsilon)[0]
         IIbackward = np.where(localCenters[:, 0] < -epsilon)[0]
         distances = np.linalg.norm(localCenters, axis = 1)
@@ -103,15 +103,16 @@ def makeStraight(superPoints):
     chains = superPoints.df['chain'].unique()
     for chain in chains:
         df = superPoints.df[superPoints.df['chain']==chain]
+        addedSegment = False
 
         # Process chain
         start = df[df['tail'] == -1]
-        if len(start) == 1:
+        if len(start) > 0:
             dfPrint = df[['chain', 'head', 'tail', 'count']]
-            print(dfPrint.head(10))
-            startIndex = start.index[0]
+            print(dfPrint.head(50))
+            startIndex = start.index.tolist()[0]
             print("Chain {}: ".format(chain), end="")
-            next = start
+            next = start[start.index == startIndex]
             headNormalStart = headNormal(df, start)
             inchWormHead = start
             inchWormSegments = 0
@@ -137,9 +138,10 @@ def makeStraight(superPoints):
                     else:
                         if inchWormSegments > 2:
                             straightSegments.append([chain, start.index[0], inchWormHead.index[0], np.median(radii)])
-
-                        infiniteLoop = infiniteLoop.union(set([next.index[0]]))
+                            addedSegment = True
+                        infiniteLoop = infiniteLoop.union(set([previous.index[0]]))
                         start = next
+                        headNormalStart = headNormal(df, start)
                         inchWormHead = start
                         inchWormSegments = 0
                         radii = []
@@ -153,13 +155,14 @@ def makeStraight(superPoints):
                     next = None
                     if inchWormSegments > 2:
                         straightSegments.append([chain, start.index[0], previous.at[previous.index[0], 'head'], np.median(radii)])
-
+                        addedSegment = True
                 # head = next.at[next.index[0], 'head']
                 # nextIndex = head
                 # next = df.loc[[head]]
 
                 #
-            print("{}".format(infiniteLoop))
+            print("{}, {}".format(infiniteLoop, addedSegment))
+    print("Segments created {}".format(len(straightSegments)))
     return straightSegments
 
 def headNormal(df, start):
