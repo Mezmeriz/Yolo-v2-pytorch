@@ -8,7 +8,7 @@ import cv2
 import matplotlib.pyplot as plt
 from pyquaternion import Quaternion
 import imutils
-
+import Samples
 
 def slice(xyz, mins, maxs):
     sliceWidth = 0.03
@@ -33,59 +33,6 @@ def slice(xyz, mins, maxs):
 
     return image
 
-class Samples():
-
-    def __init__(self):
-        self.df = pd.DataFrame()
-
-    def add(self, predictions, spot, vectors):
-        predictions = predictions[0]
-        for pi in range(len(predictions)):
-            pred = predictions[pi]
-            dict = {}
-            dict['coord'] = [(pred[0], pred[1])]
-            dict['bx'] = [pred[2]]
-            dict['by'] = [pred[3]]
-            dict['objectness'] = [pred[4]]
-            dict['class'] = [pred[5]]
-            dict['xyz'] = [spot]
-            dict['vectors'] = [vectors.flatten()]
-            df = pd.DataFrame(dict, index = [0])
-            if len(self.df) == 0:
-                self.df = df
-            else:
-                self.df = self.df.append(df, ignore_index = True)
-
-    def save(self, fileName):
-        self.df.to_pickle(fileName)
-
-    def load(self, fileName):
-        print("Loading {}".format(fileName))
-        self.df = pd.read_pickle(fileName)
-        print("Length = {} samples".format(self.df.shape[0]))
-        return self.df
-
-    def filter(self, classNumber):
-        self.df = self.df[self.df['class']==classNumber]
-
-    def filterGreater(self, field, value):
-        self.df = self.df[self.df[field]>value]
-
-    def __getitem__(self, item):
-        if len(self.df):
-            row = self.df.iloc[item]
-            coord = (np.array(row['coord']) - 448//2)/448
-            vectors = row['vectors'].reshape(3,3)
-            xyz = row['xyz']
-            radius = (row['bx'] + row['by'])/4.0/448
-            center = xyz + vectors[:,1] * (coord[1] + radius) + vectors[:,2] * (coord[0] + radius)
-            return (center, radius)
-
-    def __len__(self):
-        if len(self.df):
-            return self.df.shape[0]
-        else:
-            return 0
 
 def defineGridsProjected(xyz):
     """
@@ -134,6 +81,10 @@ def makeVectors(theta, elevation):
 
     return spherical.rotation_matrix
 
+def calcSpot(mins, maxs, depth):
+    av = (mins + maxs) / 2.0
+    return [av[0], av[1], depth]
+
 class Dice():
     # Vectors
     V1 = np.identity(3)
@@ -168,6 +119,13 @@ class Dice():
                 for depth in np.linspace(mins[0], maxs[0], nDepth + 1):
                     image = slice(projected - np.array([depth, 0, 0]), mins, maxs)
                     image = imutils.rotate(image, angle = 180)
+
+                    spot = calcSpot(mins, maxs, depth)
+
+                    if Make_Movie:
+                        cv2.imwrite('movieTMP/img{:04d}.png'.format(count), image)
+                        count += 1
+
                     image = self.interpret(image)
 
                     if image.shape[0] < image.shape[1]:
@@ -175,14 +133,13 @@ class Dice():
                     else:
                         image = imutils.resize(image, height=1000)
 
-                    if Make_Movie:
-                        cv2.imwrite('movieTMP/img{:04d}.png'.format(count), image)
-                        count += 1
+
 
                     cv2.imshow("Slice", image)
                     cv2.waitKey(1)
                 # self.scanGrids(XYZprojected, vectors)
                 # self.samples.save(fileOut)
+
 
     def interpret(self, image):
         threshold = 0.75
@@ -203,15 +160,21 @@ class Dice():
                     predictions = predictions[0]
                     for pi in range(len(predictions)):
                         pred = predictions[pi]
-                        dict = {}
-                        dict['coord'] = [(pred[0], pred[1])]
-                        dict['bx'] = [pred[2]]
-                        dict['by'] = [pred[3]]
-                        dict['objectness'] = [pred[4]]
+                        sample = {}
+                        sample['coord'] = [(pred[0], pred[1])]
+                        sample['bx'] = [pred[2]]
+                        sample['by'] = [pred[3]]
+                        sample['objectness'] = [pred[4]]
                         if pred[4] > threshold and pred[5] == 'circle':
                             image = cv2.rectangle(image, (int(pred[0] + startx), int(pred[1] + starty)),
                                                   (int(pred[0] + pred[2]+ startx), int(pred[1] + pred[3] + starty)),
                                                   (255, 255, 255), 1)
+
+                    additions = np.zeros_like(predictions)
+                    additions[0] += startx
+                    additions[1] += starty
+                    predictions = predictions + additions
+                    self.samples.add(predictions, spot, vectors)
         return image
 
     def build_KDTree(self):
@@ -273,11 +236,11 @@ if __name__ == '__main__':
         param = {'bigStep' : 0.5,
                  'smallStep' : 0.06,
                  'W' : 1}
-        S = Samples()
+        S = Samples.Samples()
         Yolo = Net.Yolo()
         #D = Dice('~/sites/tetraTech/BoilerRoom/chunkSmallest.pcd', 'superPoints/pointsDataFrameB.pkl', S, Yolo)
 
-        D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45z.pkl', S, Yolo)
+        D = Dice('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/fullSizeLabels.pkl', S, Yolo)
         #D = Dice('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mmB.pkl', S, Yolo)
 
 
