@@ -143,7 +143,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/chunk_cheap45.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-4]
+    pair = pairs[-5]
 
     superPoints = Samples()
     superPoints.load(pair[1])
