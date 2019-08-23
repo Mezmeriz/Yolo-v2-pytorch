@@ -41,7 +41,7 @@ class ModelView():
         for s in self.ptSpheres:
             s.paint_uniform_color(COLOR_GREEN)
 
-    def addPoints(self, pts):
+    def addPoints(self, pts, radius = None):
         pOriginal = np.array(self.pts)
         pNew = np.array(pts)
 
@@ -50,20 +50,22 @@ class ModelView():
         else:
             self.pts = pNew
 
-        self.ptSpheres = self.make()
+        self.ptSpheres = self.make(radius)
         for s in self.ptSpheres:
             self.vis.add_geometry(s)
 
 
-    def make(self):
+    def make(self, radius):
         """Make spheres for each point"""
         pts = self.pts
 
-        R = 0.015 * 3
+        if radius is None:
+            radius = np.zeros(self.pts.shape[0]) + 0.05
+
         obj = []
         for i in range(pts.shape[0]):
             center = pts[i,:]
-            sphere = o3d.create_mesh_sphere(R, 12).transform(pose(center))
+            sphere = o3d.create_mesh_sphere(radius[i], 12).transform(pose(center))
             sphere.paint_uniform_color(COLOR_GREEN)
             sphere.compute_vertex_normals()
             obj.append(sphere)

@@ -3,6 +3,8 @@ import open3d as o3d
 import pandas as pd
 import ModelView
 import time
+import Samples
+import scipy.spatial.kdtree as KD
 
 def pose(xyz, rot = None):
     m = np.identity(4)
@@ -17,19 +19,52 @@ COLOR_RED = [1, 0, 0]
 
 class Chains:
 
-    def __init__(self, df, chainNumber = None):
-        self.df = df
+    def __init__(self, samples):
+        """
+        Takes the data samples and finds the centers and radii.
+        Prepare structures for neighbors
+        :param df:
+        """
+        print(samples.df.keys())
+        N = len(samples)
+        self.N = N
+        self.centers = np.zeros((N,3))
+        self.radii = np.zeros((N,1))
 
-        if chainNumber is None:
-            self.chainNumber = None
-            self.dfChain = None
-        else:
-            self.setChain(chainNumber)
+        for i in range(N):
+            center, R = samples[i]
+            self.centers[i,:] = center
+            self.radii[i] = R
 
-    def setChain(self, chainNumber):
-        self.chainNumber = chainNumber
-        self.dfChain = self.df[self.df['chain'] == chainNumber]
-        self.make()
+        print("Making KD Tree")
+        self.KD = KD.KDTree(self.centers)
+
+        self.neighbors = [[] for i in range(N)]
+
+    def findNeighbors(self):
+        # self.neighbors = self.KD.query_ball_tree(other=self.KD, r=0.1)
+        self.neighbors = []
+        factor = 0.5
+        for i in range(self.N):
+            R = self.radii[i]
+            connections = self.KD.query_ball_point(self.centers[i,:], R * factor)
+            connections.remove(i)
+            self.neighbors.append(connections)
+        print(self.neighbors)
+
+    def findMergeCandidates(self):
+        reciprocals = self.findReciprocalConnectionCount()
+
+
+    def findReciprocalConnectionCount(self):
+        reciprocalConnections = []
+        for i in range(self.N):
+            conn = 0
+            for j in self.neighbors[i]:
+                if i in self.neighbors[j]:
+                    conn += 1
+            reciprocalConnections.append(conn)
+        return reciprocalConnections
 
     def keyIndex(self, key):
         dfKeys = [i for i in self.df.keys()]
@@ -58,31 +93,11 @@ class Chains:
             obj.append(sphere)
         self.obj = obj
 
-    def show(self):
-        o3d.draw_geometries(self.obj)
-
-    def showInteractive(self):
-        self.custom_draw_geometry_with_key_callback(self.obj)
-
     def save(self, fileName):
         self.df.to_pickle(fileName)
 
-    def custom_draw_geometry_with_key_callback(self, pcd):
 
-        highlightIndex = 0
-        self.obj[highlightIndex].paint_uniform_color(COLOR_GREEN)
 
-        def next(vis):
-            nonlocal highlightIndex
-            highlightIndex += 1
-            self.obj[highlightIndex].paint_uniform_color(COLOR_GREEN)
-            vis.update_geometry()
-            # vis.poll_events()
-            vis.update_renderer()
-
-        key_to_callback = {}
-        key_to_callback[ord("N")] = next
-        o3d.visualization.draw_geometries_with_key_callbacks(pcd, key_to_callback)
 
 
 def makeStraight(df, viewer):
@@ -192,29 +207,46 @@ def headNormal(df, start):
 
 def load(fileName):
     print("Loading {}".format(fileName))
-    df = pd.read_pickle(fileName)
-    print("Length = {} samples".format(df.shape[0]))
-    return Chains(df)
+    samples = pd.read_pickle(fileName)
+    print("Length = {} samples".format(len(samples)))
+    return Chains(samples)
 
 if __name__ == '__main__':
-    C = load('tmp/chain981.pkl')
-    C.setChain(981)
+    pairs = [('~/cheap.pcd', 'superPoints/pointsDataFrameB.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheap.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
+             ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
+             ('', 'superPoints/synthA.pkl')]
+    pair = pairs[-1]
+
+    superPoints = Samples.Samples()
+    superPoints.load(pair[1])
+
+
+    C = Chains(superPoints)
+    C.findNeighbors()
+    C.findMergeCandidates()
 
     MV = ModelView.ModelView()
-    MV.addPoints(np.vstack(C.df['centers'].to_numpy()))
-
-    chains = C.df['chain'].to_numpy()
-    score = C.df['objectness'].to_numpy()
-
-    colors = {}
-    for index, chain in enumerate(chains):
-        key = "{}".format(chain)
-        if key not in colors.keys():
-            newColor = np.random.random(3)
-            newColor = newColor/np.max(newColor) * score[index]
-            colors[key] = newColor
-
-        MV.colorOne(index, list(colors[key]))
-
+    MV.addPoints(C.centers, C.radii)
     MV.update()
+
+
+    # MV = ModelView.ModelView()
+    # MV.addPoints(np.vstack(C.df['centers'].to_numpy()))
+    #
+    # chains = C.df['chain'].to_numpy()
+    # score = C.df['objectness'].to_numpy()
+    #
+    # colors = {}
+    # for index, chain in enumerate(chains):
+    #     key = "{}".format(chain)
+    #     if key not in colors.keys():
+    #         newColor = np.random.random(3)
+    #         newColor = newColor/np.max(newColor) * score[index]
+    #         colors[key] = newColor
+    #
+    #     MV.colorOne(index, list(colors[key]))
+    #
+    # MV.update()
 
