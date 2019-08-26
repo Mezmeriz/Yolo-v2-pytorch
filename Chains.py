@@ -17,6 +17,9 @@ COLOR_BLUE = [0,0,1]
 COLOR_GREEN = [0.1, 0.9, 0.1]
 COLOR_RED = [1, 0, 0]
 
+MERGE_ALWAYS_DISTANCE = 0.05
+MERGE_THREE_PLUS_CONNECTIONS_RADII = 0.5
+
 class Chains:
 
     def __init__(self, samples):
@@ -36,15 +39,22 @@ class Chains:
             self.centers[i,:] = center
             self.radii[i] = R
 
+        # Parameters that need updates after size changes
+        self.KD = None
+        self.neighbors = None
+        self.update()
+
+    def update(self):
+        self.N = self.centers.shape[0]
         print("Making KD Tree")
         self.KD = KD.KDTree(self.centers)
 
-        self.neighbors = [[] for i in range(N)]
+        self.neighbors = [[] for i in range(self.N)]
 
     def findNeighbors(self):
         # self.neighbors = self.KD.query_ball_tree(other=self.KD, r=0.1)
         self.neighbors = []
-        factor = 0.5
+        factor = 1.0
         for i in range(self.N):
             R = self.radii[i]
             connections = self.KD.query_ball_point(self.centers[i,:], R * factor)
@@ -54,7 +64,54 @@ class Chains:
 
     def findMergeCandidates(self):
         reciprocals = self.findReciprocalConnectionCount()
+        distances = self.pairDistances()
 
+        print(reciprocals)
+        print(distances)
+
+        mergeList = []
+        for ni in range(self.N):
+            for j, nj in enumerate(self.neighbors[ni]):
+                if len(distances[ni]) and distances[ni][j] < MERGE_ALWAYS_DISTANCE:
+                    mergeList.append([ni, nj])
+        mergeList = np.array(mergeList, dtype = np.int)
+        mergeList.sort(axis = 1)
+        mergeList = np.unique(mergeList, axis = 0)
+        print(mergeList)
+        self.merge(mergeList)
+        self.update()
+
+    def merge(self, mergeList):
+        """
+        Average the nodes to be merged.
+        Put result in lower index of each pair.
+        Kill the upper index of each pair.
+
+        :param mergeList:
+        :return:
+        """
+        keepSet = {i for i in range(self.N)}
+        killSet = []
+
+        for i,j in mergeList:
+            self.centers[i] = (self.centers[i] + self.centers[j]) / 2.0
+            self.radii[i] = (self.radii[i] + self.radii[j]) / 2.0
+            killSet.append(j)
+        killSet = set(killSet)
+        keepSet = keepSet.difference(killSet)
+
+        self.centers = self.centers[list(keepSet), :]
+        self.radii = self.radii[list(keepSet), :]
+
+    def pairDistances(self):
+        distances = []
+        for i in range(self.N):
+            distanceI = []
+            for j in self.neighbors[i]:
+                distance = np.linalg.norm(self.centers[i] - self.centers[j])
+                distanceI.append(distance)
+            distances.append(distanceI)
+        return distances
 
     def findReciprocalConnectionCount(self):
         reciprocalConnections = []
@@ -225,13 +282,24 @@ if __name__ == '__main__':
 
     C = Chains(superPoints)
     C.findNeighbors()
+
+    view = False
+
+    if view:
+        MV = ModelView.ModelView()
+        MV.addPoints(C.centers, C.radii)
+        MV.update()
+
+
     C.findMergeCandidates()
 
-    MV = ModelView.ModelView()
-    MV.addPoints(C.centers, C.radii)
-    MV.update()
+    if view:
+        MV2 = ModelView.ModelView()
+        MV2.addPoints(C.centers, C.radii)
+        MV2.update()
 
-
+    C.findNeighbors()
+    C.findMergeCandidates()
     # MV = ModelView.ModelView()
     # MV.addPoints(np.vstack(C.df['centers'].to_numpy()))
     #

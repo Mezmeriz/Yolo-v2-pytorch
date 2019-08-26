@@ -45,7 +45,7 @@ class ModelView():
         pOriginal = np.array(self.pts)
         pNew = np.array(pts)
 
-        if pOriginal.shape[0]:
+        if False: #pOriginal.shape[0]:
             self.pts = np.vstack((pOriginal, pNew))
         else:
             self.pts = pNew

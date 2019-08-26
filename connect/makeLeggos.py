@@ -4,14 +4,14 @@ import ViewSamples
 import DiceSimple
 
 anno = DiceSimple.Samples()
-
+step = 0.15
 x = 200
 y = 200
-bx = 90
-by = 90
+bx = 1.5*step*448*2
+by = bx
 objectness = 1
 classNumber = 0
-step = 0.15
+
 N = 5
 xx = np.linspace(0,N*step, N)
 yy = np.zeros_like(xx)
@@ -27,7 +27,7 @@ for ifor in range(N):
 
     anno.add(predictions, xyz[ifor,:], vectors)
 
-    anno.add(predictions, xyz[ifor,:] + np.array([0,0,0.045]), vectors)
+    anno.add(predictions, xyz[ifor,:] + np.array([0, 0, 0.045]), vectors)
 
 anno.add(predictions, np.array([0,0.4, 0.4]), vectors)
 anno.save('../superPoints/synthA.pkl')
