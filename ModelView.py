@@ -1,3 +1,13 @@
+"""
+ModelView
+
+Intendet to help in the debugging process.
+Someday I would like it to be multithreaded to allow non-blocking event processing while updating the model.
+Currently, if events are processed, it runs in a blocking mode.
+Non-blocking updates work, but then the mouse rotate events are not processed.
+
+"""
+
 import open3d as o3d
 import numpy as np
 

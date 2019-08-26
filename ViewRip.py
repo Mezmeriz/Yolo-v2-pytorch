@@ -155,11 +155,6 @@ if __name__ == '__main__':
     print("Length post filter {}".format(len(superPoints)))
 
 
-    import Chains
-    C = Chains.Chains(superPoints.df)
-    C.save('tmp/chain981.pkl')
-
-
     straightSegments = connect.leggo.makeStraight(superPoints)
     # straightSegments = []
     if len(straightSegments):

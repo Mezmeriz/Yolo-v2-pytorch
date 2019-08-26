@@ -124,9 +124,12 @@ class Dice():
 
                     if Make_Movie:
                         cv2.imwrite('movieTMP/img{:04d}.png'.format(count), image)
-                        count += 1
 
-                    image = self.interpret(image)
+                    image = self.interpret(image, spot, vectors)
+
+                    if Make_Movie:
+                        cv2.imwrite('movieTMP/img{:04d}.jpg'.format(count), imutils.resize(image, width=800))
+                        count += 1
 
                     if image.shape[0] < image.shape[1]:
                         image = imutils.resize(image, width = 448*3)
@@ -141,7 +144,7 @@ class Dice():
                 # self.samples.save(fileOut)
 
 
-    def interpret(self, image):
+    def interpret(self, image, spot, vectors):
         threshold = 0.75
         nx = int(np.ceil(image.shape[1]/448.0))
         ny = int(np.ceil(image.shape[0]/448.0))
@@ -157,9 +160,8 @@ class Dice():
 
                 predictions = self.model(sampleImage)
                 if len(predictions) != 0:
-                    predictions = predictions[0]
-                    for pi in range(len(predictions)):
-                        pred = predictions[pi]
+                    for pi in range(len(predictions[0])):
+                        pred = predictions[0][pi]
                         sample = {}
                         sample['coord'] = [(pred[0], pred[1])]
                         sample['bx'] = [pred[2]]
@@ -170,10 +172,9 @@ class Dice():
                                                   (int(pred[0] + pred[2]+ startx), int(pred[1] + pred[3] + starty)),
                                                   (255, 255, 255), 1)
 
-                    additions = np.zeros_like(predictions)
-                    additions[0] += startx
-                    additions[1] += starty
-                    predictions = predictions + additions
+                        predictions[0][pi][0] += startx
+                        predictions[0][pi][0] += starty
+
                     self.samples.add(predictions, spot, vectors)
         return image
 
