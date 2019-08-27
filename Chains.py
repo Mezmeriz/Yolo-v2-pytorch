@@ -18,7 +18,7 @@ Next up:
         2) some sort of best fit lines to ever increasing group sizes
 
 """
-
+from typing import List, Set, Dict, Any
 import numpy as np
 import open3d as o3d
 import pandas as pd
@@ -26,6 +26,7 @@ import ModelView
 import time
 import Samples
 import scipy.spatial.kdtree as KD
+from abc import abstractmethod
 
 def pose(xyz, rot = None):
     m = np.identity(4)
@@ -64,14 +65,40 @@ class Chains:
         # Parameters that need updates after size changes
         self.KD = None
         self.neighbors = None
+        self.distances = None
+
+        self.mergeCloselySpaced()
+        self.removeOrphans()
+        self.chains = self.connect()
+
+    def mergeCloselySpaced(self):
+        """
+        Merge closely spaced superpoints
+        :return:
+        """
+        print("Merging superpoints < {:3.1f} cm apart".format(MERGE_ALWAYS_DISTANCE*100))
         self.update()
+        merged = True
+        count = 0
+        while merged:
+            mergeList = C.findMergeCandidates()
+            if mergeList is not None:
+                C.merge(mergeList)
+                C.update()
+            else:
+                merged = False
+            count += 1
+            asset
+            count < 100, "Really? {} merges. Probably something wrong".format(count)
+        print("")
 
     def update(self):
+        """Done at the beginning of an operation to ensure fresh data"""
         self.N = self.centers.shape[0]
-        print("Found {} objects".format(self.N))
+        print("Updating: Found {} objects, ".format(self.N), end = "")
         print("Making KD Tree")
         self.KD = KD.KDTree(self.centers)
-        self.neighbors = [[] for i in range(self.N)]
+        self.findNeighbors()
 
     def findNeighbors(self, factor = 0.5):
         """
@@ -82,13 +109,15 @@ class Chains:
         """
 
         self.neighbors = []
+        self.distances = []
+
         for i in range(self.N):
             R = self.radii[i]
             distanceThreshold = max([R*factor, STEP_SIZE_FACTOR * STEP_SIZE])
-            connections = self.KD.query_ball_point(self.centers[i,:], distanceThreshold)
+            connections = self.KD.query_ball_point(self.centers[i, :], distanceThreshold)
             connections.remove(i)
             self.neighbors.append(connections)
-
+            self.distances.append(self.neighborDistances(i))
 
     def findMergeCandidates(self):
         """
@@ -185,18 +214,6 @@ class Chains:
             reciprocalConnections.append(conn)
         return reciprocalConnections
 
-    def connect(self):
-        for i in range(self.N):
-            neigbors = self.neighbors[i]
-
-            if len(neigbors):
-                distances = self.neighborDistances(i)
-                nearestNeighbor = np.argmin(distances)
-                nearestDirection, distance = direction(i, nearestNeighbor)
-                # We already know that the distance is close enough given the neighbor calculations
-
-
-
     def direction(self, i, j):
         u = self.centers[j, :] - self.centers[i, :]
         distance = np.linalg.norm(u)
@@ -204,20 +221,136 @@ class Chains:
         return u, distance
 
 
-class Chain():
+    def connect(self):
+        consumed = {}
+        chains = []
+        for i in range(self.N):
+            if i not in consumed:
+                neigbors = self.neighbors[i]
+                if len(neigbors):
+                    distances = self.neighborDistances(i)
+                    nearestNeighbor = np.argmin(distances)
+                    nearestDirection, distance = direction(i, nearestNeighbor)
+                    chain = self.chain(i, nearestNeighbor, nearestDirection, consumed)
+                chains.append(chain)
+        return chains
 
-    def __init__(self, index, center, radius):
-        node = {'index' : index]
-        self.centers = [center]
-        self.radii = [radius]
+
+    def getDistance(self, i, j):
+        index = self.neighbors.index(j)
+        return self.neighborDistances(index)
+
+    def chain(self, index, nearestNeighbor, nearestDirection, consumed):
+        links = []
+        link0 = Link(index, nearestNeighbor, nearestDirection, self.radii[index], self.centers[index])
+        link = link0
+
+        done = False
+        while not done:
+            links.append(link)
+            consumed.update(link.consumed)
+            next = follow(Link.FORWARD, link)
+            if next is not None:
+                link.next = next
+                link = next
+            else:
+                done = True
+
+        done = False
+        while not done:
+            links.append(link)
+            consumed.update(link.consumed)
+            next = follow(Link.BACKWARD, link)
+            if next is not None:
+                link.previous = next
+                link = next
+            else:
+                done = True
 
     def add(self, index, center, radius):
         self.indicies.append(index)
         self.centers.append(radius)
 
+    def follow(self, forward, link):
+
+        nearestNeighbor = self.nearestWithDirectionLimit(link, forward)
+        if nextNextIndex is not None:
+            nextLink = Link(forward, link.nextIndex, nearestNeighbor, self.direction(index, nearestNeighbor),
+                            self.getDistance(index, nearestNeighbor), self.radii[index], self.centers[index])
+            return nextLink
+        else:
+            return None
+
+    def nearestWithDirectionLimit(self, link, forward):
+        """ find the subset of neighbors that are allong the follow direction.
+        Find the one with the minimum distance.
+        Return that as the next link.
+        """
+        angularThreshold = np.cos(45 * np.pi/180)
+
+        if forward:
+            direction = link.direction
+            index = link.nextIndex
+        else:
+            direction = -1.0 * link.direction
+            index = link.previousIndex
+
+        neighbors = self.neighbors[index]
+        distances = self.distances[index]
+        centers = self.centers[neighbors]
+        centersLocal = centers - link.center
+        directions = centersLocal / distances
+        dotProduct = np.matmul(directions, direction)
+        II = np.where(dotProduct > angularThreshold)[0]
+        if len(II):
+            # find the minimum distance of the remaining
+            II2 = np.argmin(distances[II])
+            nearestNeighbor = II[II2]
+            return nearestNeighbor
+        else:
+            return None
+
+
+
+
 class Link():
-    def __init__(self, index, center, radius):
-        
+    FORWARD = True
+    BACKWARD = False
+
+    def __init__(self, forward, index, nearestNeighbor, nearestDirection, length, radius, center):
+        """
+        Use the node at index and the direction to find the next node in the chain.
+        :param index: link node index
+        :param neighbors: neighbor node indicies
+        :param direction: unit vector = Forward
+        :param centers: all node centers
+        :param radii:
+        """
+        self.center = center
+        self.index = index
+
+        if forward:
+            self.nextIndex = nearestNeighbor
+            self.direction = np.copy(nearestDirection)
+        else:
+            self.previousIndex = nearestNeighbor
+            self.direction = np.copy(nearestDirection)
+
+        self.length = length
+        self.consumed = nearestNeighbor
+        self.radius = radius
+
+        # To be updated
+        self.next = None
+        self.previous = None
+
+    @property
+    def terminated(self):
+        return self.nextIndex is None
+
+    def follow(self, direction, index, centers):
+        "Factory for the next link"
+
 # def makeStraight(df, viewer):
 #     """
 #     Go through each chain.
@@ -336,23 +469,6 @@ if __name__ == '__main__':
     superPoints.load(pair[1])
 
     C = Chains(superPoints)
-    C.findNeighbors()
-
-    # Merge closely spaced superpoints
-    for ifor in range(2):
-        # Perofrm more than once because nodes could be involved in more than one short segment
-        mergeList = C.findMergeCandidates()
-        if mergeList is not None:
-            C.merge(mergeList)
-            C.update()
-
-    # Remove orphan points that have no neighbors
-    C.findNeighbors()
-    C.removeOrphans()
-    C.update()
-
-    C.findNeighbors()
-    C.connect()
 
     view = True
     if view:
