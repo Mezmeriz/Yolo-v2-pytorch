@@ -164,12 +164,16 @@ class Chains:
     def pairDistances(self):
         distances = []
         for i in range(self.N):
-            distanceI = []
-            for j in self.neighbors[i]:
-                distance = np.linalg.norm(self.centers[i] - self.centers[j])
-                distanceI.append(distance)
+            distancesI = self.neighborDistances(i)
             distances.append(distanceI)
         return distances
+
+    def neighborDistances(self, i):
+        distanceI = []
+        for j in self.neighbors[i]:
+            distance = np.linalg.norm(self.centers[i] - self.centers[j])
+            distanceI.append(distance)
+        return distanceI
 
     def findReciprocalConnectionCount(self):
         reciprocalConnections = []
@@ -181,11 +185,39 @@ class Chains:
             reciprocalConnections.append(conn)
         return reciprocalConnections
 
+    def connect(self):
+        for i in range(self.N):
+            neigbors = self.neighbors[i]
+
+            if len(neigbors):
+                distances = self.neighborDistances(i)
+                nearestNeighbor = np.argmin(distances)
+                nearestDirection, distance = direction(i, nearestNeighbor)
+                # We already know that the distance is close enough given the neighbor calculations
 
 
 
+    def direction(self, i, j):
+        u = self.centers[j, :] - self.centers[i, :]
+        distance = np.linalg.norm(u)
+        u = u / distance
+        return u, distance
 
 
+class Chain():
+
+    def __init__(self, index, center, radius):
+        node = {'index' : index]
+        self.centers = [center]
+        self.radii = [radius]
+
+    def add(self, index, center, radius):
+        self.indicies.append(index)
+        self.centers.append(radius)
+
+class Link():
+    def __init__(self, index, center, radius):
+        
 # def makeStraight(df, viewer):
 #     """
 #     Go through each chain.
@@ -318,6 +350,9 @@ if __name__ == '__main__':
     C.findNeighbors()
     C.removeOrphans()
     C.update()
+
+    C.findNeighbors()
+    C.connect()
 
     view = True
     if view:
