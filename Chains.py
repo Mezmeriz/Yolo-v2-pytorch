@@ -81,15 +81,14 @@ class Chains:
         merged = True
         count = 0
         while merged:
-            mergeList = C.findMergeCandidates()
+            mergeList = self.findMergeCandidates()
             if mergeList is not None:
-                C.merge(mergeList)
-                C.update()
+                self.merge(mergeList)
+                self.update()
             else:
                 merged = False
             count += 1
-            asset
-            count < 100, "Really? {} merges. Probably something wrong".format(count)
+            assert count < 100, "Really? {} merges. Probably something wrong".format(count)
         print("")
 
     def update(self):
@@ -194,7 +193,7 @@ class Chains:
         distances = []
         for i in range(self.N):
             distancesI = self.neighborDistances(i)
-            distances.append(distanceI)
+            distances.append(distancesI)
         return distances
 
     def neighborDistances(self, i):
@@ -220,6 +219,12 @@ class Chains:
         u = u / distance
         return u, distance
 
+    def nearest(self, i):
+        return np.neighbors(np.argmin(self.neighborDistances(i)))
+
+    def getDistance(self, i, j):
+        index = self.neighbors.index(j)
+        return self.neighborDistances(index)
 
     def connect(self):
         consumed = {}
@@ -228,23 +233,19 @@ class Chains:
             if i not in consumed:
                 neigbors = self.neighbors[i]
                 if len(neigbors):
-                    distances = self.neighborDistances(i)
-                    nearestNeighbor = np.argmin(distances)
+                    nearestNeighbor = nearest(i)
                     nearestDirection, distance = direction(i, nearestNeighbor)
-                    chain = self.chain(i, nearestNeighbor, nearestDirection, consumed)
-                chains.append(chain)
+                    chain, consumedChain = self.chain(i, nearestNeighbor, nearestDirection, consumed)
+                    chains.append(chain)
+                    consumed.update(consumedChain)
         return chains
-
-
-    def getDistance(self, i, j):
-        index = self.neighbors.index(j)
-        return self.neighborDistances(index)
 
     def chain(self, index, nearestNeighbor, nearestDirection, consumed):
         links = []
         link0 = Link(index, nearestNeighbor, nearestDirection, self.radii[index], self.centers[index])
         link = link0
 
+        # Follow forward, first link already created
         done = False
         while not done:
             links.append(link)
@@ -256,14 +257,16 @@ class Chains:
             else:
                 done = True
 
+        # Follow back
         done = False
+        link = link0
         while not done:
-            links.append(link)
-            consumed.update(link.consumed)
-            next = follow(Link.BACKWARD, link)
-            if next is not None:
-                link.previous = next
-                link = next
+            previous = follow(Link.BACKWARD, link)
+            if previous is not None:
+                links.insert(previous)
+                consumed.update(link.consumed)
+                link.previous = previous
+                link = previous
             else:
                 done = True
 
@@ -275,8 +278,10 @@ class Chains:
 
         nearestNeighbor = self.nearestWithDirectionLimit(link, forward)
         if nextNextIndex is not None:
-            nextLink = Link(forward, link.nextIndex, nearestNeighbor, self.direction(index, nearestNeighbor),
-                            self.getDistance(index, nearestNeighbor), self.radii[index], self.centers[index])
+            nextLink = Link(forward, link.nextIndex, nearestNeighbor,
+                            self.direction(nearestNeighbor, link.index)[0],
+                            self.getDistance(link.index, nearestNeighbor), self.radii[nearestNeighbor],
+                            self.centers[nearestNeighbor])
             return nextLink
         else:
             return None
@@ -463,7 +468,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-2]
+    pair = pairs[-1]
 
     superPoints = Samples.Samples()
     superPoints.load(pair[1])
