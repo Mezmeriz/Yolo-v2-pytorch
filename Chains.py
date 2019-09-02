@@ -66,6 +66,7 @@ class Chains:
         self.KD = None
         self.neighbors = None
         self.distances = None
+        self.consumed = set()
 
         self.mergeCloselySpaced()
         self.removeOrphans()
@@ -188,6 +189,7 @@ class Chains:
 
         self.centers = self.centers[list(keepSet), :]
         self.radii = self.radii[list(keepSet), :]
+        self.update()
 
     def pairDistances(self):
         distances = []
@@ -216,77 +218,109 @@ class Chains:
     def direction(self, i, j):
         u = self.centers[j, :] - self.centers[i, :]
         distance = np.linalg.norm(u)
+        if distance < 1e-6:
+            print("How?")
         u = u / distance
         return u, distance
 
     def nearest(self, i):
-        return np.neighbors(np.argmin(self.neighborDistances(i)))
+        d = self.distances[i]
+        II = np.argmin(d)
+        return self.neighbors[i][II]
 
     def getDistance(self, i, j):
         index = self.neighbors.index(j)
-        return self.neighborDistances(index)
+        return self.neighborDistances[index]
 
     def connect(self):
-        consumed = {}
+        """
+        Scan through all nodes.
+        Find the nearest neighbor within a certain radius.
+        Use it to establish a forward direction.
+        Follow the chain forward and backward.
+        :return: A list of chains
+        """
         chains = []
         for i in range(self.N):
-            if i not in consumed:
+            if i not in self.consumed:
                 neigbors = self.neighbors[i]
                 if len(neigbors):
-                    nearestNeighbor = nearest(i)
-                    nearestDirection, distance = direction(i, nearestNeighbor)
-                    chain, consumedChain = self.chain(i, nearestNeighbor, nearestDirection, consumed)
+                    nearestNeighbor = self.nearest(i)
+                    nearestDirection, distance = self.direction(i, nearestNeighbor)
+                    chain = self.chain(i, nearestNeighbor, nearestDirection, distance)
                     chains.append(chain)
-                    consumed.update(consumedChain)
+
+        print("{} chains created".format(len(chains)))
+
+        for c in chains:
+            print(len(c))
         return chains
 
-    def chain(self, index, nearestNeighbor, nearestDirection, consumed):
+    def chain(self, index, nearestNeighbor, nearestDirection, distance):
         links = []
-        link0 = Link(index, nearestNeighbor, nearestDirection, self.radii[index], self.centers[index])
-        link = link0
+        index0= index
 
-        # Follow forward, first link already created
+        # Follow forward,
+        # If no neighbor is found, stop
+
+
         done = False
         while not done:
-            links.append(link)
-            consumed.update(link.consumed)
-            next = follow(Link.FORWARD, link)
-            if next is not None:
-                link.next = next
-                link = next
+            nearestNeighbor = self.nearestWithDirectionLimit(Link.FORWARD, index, nearestDirection)
+            if nearestNeighbor is not None:
+                # Make link
+                # Consume index
+                nearestDirection, distance = self.direction(index, nearestNeighbor)
+                link = Link(index, nearestNeighbor, nearestDirection, distance, self.radii[index], self.centers[index])
+                self.consumed.add(index)
+                print("F: Consumed {}".format(index))
+                links.append(link)
+
             else:
+                self.consumed.add(index)
                 done = True
 
-        # Follow back
-        done = False
-        link = link0
-        while not done:
-            previous = follow(Link.BACKWARD, link)
-            if previous is not None:
-                links.insert(previous)
-                consumed.update(link.consumed)
-                link.previous = previous
-                link = previous
-            else:
+            if nearestNeighbor in self.consumed:
                 done = True
+            else:
+                index = nearestNeighbor
+
+        # Follow backward, a little different since the link is only forward
+        index = index0
+        link = links[0]
+        done = False
+        nearestDirection = link.direction
+        while not done:
+            nearestNeighbor = self.nearestWithDirectionLimit(Link.BACKWARD, index, nearestDirection)
+            if nearestNeighbor is not None and nearestNeighbor not in self.consumed:
+                # Make link
+                # Consume index
+                nearestDirection, distance = self.direction(nearestNeighbor, index)
+                # Flip the inputs for index and neighbor, flip direction
+                link = Link(index=nearestNeighbor, nearestNeighbor=index, nearestDirection= nearestDirection,
+                            length=distance, radius=self.radii[nearestNeighbor], center=self.centers[nearestNeighbor])
+                self.consumed.add(nearestNeighbor)
+                print("B: Consumed {}".format(nearestNeighbor))
+                links.append(link)
+                index = nearestNeighbor
+
+            else:
+                self.consumed.add(index)
+                done = True
+
+            # if nearestNeighbor in self.consumed:
+            #     done = True
+            # else:
+            #     index = nearestNeighbor
+
+        return links
 
     def add(self, index, center, radius):
         self.indicies.append(index)
         self.centers.append(radius)
 
-    def follow(self, forward, link):
 
-        nearestNeighbor = self.nearestWithDirectionLimit(link, forward)
-        if nextNextIndex is not None:
-            nextLink = Link(forward, link.nextIndex, nearestNeighbor,
-                            self.direction(nearestNeighbor, link.index)[0],
-                            self.getDistance(link.index, nearestNeighbor), self.radii[nearestNeighbor],
-                            self.centers[nearestNeighbor])
-            return nextLink
-        else:
-            return None
-
-    def nearestWithDirectionLimit(self, link, forward):
+    def nearestWithDirectionLimit(self, forward, index, previousDirection):
         """ find the subset of neighbors that are allong the follow direction.
         Find the one with the minimum distance.
         Return that as the next link.
@@ -294,23 +328,22 @@ class Chains:
         angularThreshold = np.cos(45 * np.pi/180)
 
         if forward:
-            direction = link.direction
-            index = link.nextIndex
+            direction = previousDirection
         else:
-            direction = -1.0 * link.direction
-            index = link.previousIndex
+            direction = -1.0 * previousDirection
+
 
         neighbors = self.neighbors[index]
         distances = self.distances[index]
         centers = self.centers[neighbors]
-        centersLocal = centers - link.center
-        directions = centersLocal / distances
+        centersLocal = centers - self.centers[index]
+        directions = (centersLocal.T / distances).T
         dotProduct = np.matmul(directions, direction)
         II = np.where(dotProduct > angularThreshold)[0]
         if len(II):
             # find the minimum distance of the remaining
-            II2 = np.argmin(distances[II])
-            nearestNeighbor = II[II2]
+            II2 = np.argmin(np.array(distances)[II])
+            nearestNeighbor = neighbors[II[II2]]
             return nearestNeighbor
         else:
             return None
@@ -322,7 +355,7 @@ class Link():
     FORWARD = True
     BACKWARD = False
 
-    def __init__(self, forward, index, nearestNeighbor, nearestDirection, length, radius, center):
+    def __init__(self, index, nearestNeighbor, nearestDirection, length, radius, center):
         """
         Use the node at index and the direction to find the next node in the chain.
         :param index: link node index
@@ -331,30 +364,17 @@ class Link():
         :param centers: all node centers
         :param radii:
         """
-        self.center = center
         self.index = index
-
-        if forward:
-            self.nextIndex = nearestNeighbor
-            self.direction = np.copy(nearestDirection)
-        else:
-            self.previousIndex = nearestNeighbor
-            self.direction = np.copy(nearestDirection)
-
         self.length = length
-        self.consumed = nearestNeighbor
         self.radius = radius
+        self.center = center
 
-        # To be updated
-        self.next = None
-        self.previous = None
+        self.nextIndex = nearestNeighbor
+        self.direction = np.copy(nearestDirection)
 
-    @property
-    def terminated(self):
-        return self.nextIndex is None
 
-    def follow(self, direction, index, centers):
-        "Factory for the next link"
+
+
 
 # def makeStraight(df, viewer):
 #     """
@@ -468,7 +488,7 @@ if __name__ == '__main__':
              ('~/sites/tetraTech/BoilerRoom/full_5mm.pcd', 'superPoints/full_5mm.pkl'),
              ('~/sites/tetraTech/BoilerRoom/chunk_cheap.pcd', 'superPoints/chunk_cheapB.pkl'),
              ('', 'superPoints/synthA.pkl')]
-    pair = pairs[-1]
+    pair = pairs[-2]
 
     superPoints = Samples.Samples()
     superPoints.load(pair[1])
