@@ -72,6 +72,18 @@ class Chains:
         self.removeOrphans()
         self.chains = self.connect()
 
+    def showChains(self, MV):
+        for chain in self.chains:
+            pts = set()
+            for link in chain:
+                p1i = link.index
+                p2i = link.nextIndex
+                pts.add(p1i)
+                pts.add(p2i)
+                MV.addCylinder(self.centers[p1i, :], self.centers[p2i, :], color = [0.1,0.1,0.1], radius = 0.02)
+            centers = self.centers[list(pts), :]
+            MV.addSpheres(centers, radii=0.03, color=np.random.random(3))
+
     def mergeCloselySpaced(self):
         """
         Merge closely spaced superpoints
@@ -301,7 +313,7 @@ class Chains:
                             length=distance, radius=self.radii[nearestNeighbor], center=self.centers[nearestNeighbor])
                 self.consumed.add(nearestNeighbor)
                 print("B: Consumed {}".format(nearestNeighbor))
-                links.append(link)
+                links.insert(0, link)
                 index = nearestNeighbor
 
             else:
@@ -495,10 +507,16 @@ if __name__ == '__main__':
 
     C = Chains(superPoints)
 
+    view = False
+    if view:
+        MV2 = ModelView.ModelView()
+        MV2.addSpheres(C.centers, C.radii)
+        MV2.update()
+
     view = True
     if view:
         MV2 = ModelView.ModelView()
-        MV2.addPoints(C.centers, C.radii)
+        C.showChains(MV2)
         MV2.update()
 
     # MV = ModelView.ModelView()

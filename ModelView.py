@@ -10,6 +10,9 @@ Non-blocking updates work, but then the mouse rotate events are not processed.
 
 import open3d as o3d
 import numpy as np
+from pyquaternion import Quaternion
+import numpy.matlib as matlib
+import time
 
 def pose(xyz, rot = None):
     m = np.identity(4)
@@ -29,8 +32,7 @@ class ModelView():
         self.vis = o3d.Visualizer()
         self.vis.create_window()
 
-        self.pts =[]
-        self.ptSpheres = []
+        self.objects = []
 
     def update(self):
         self.vis.update_geometry()
@@ -43,40 +45,121 @@ class ModelView():
         self.vis.poll_events()
         self.vis.update_renderer()
 
+    def addPoints(self, pts, colors):
+        pcd = o3d.PointCloud()
+        pcd.points = o3d.Vector3dVector(pts)
 
-    def colorOne(self, i, color = COLOR_RED):
-        self.ptSpheres[i].paint_uniform_color(color)
+        colors = np.array(colors).reshape((-1,3))
+        if colors.shape[0] == 1:
+            colors = np.matlib.repmat(colors, pts.shape[0],1)
 
-    def colorAll(self):
-        for s in self.ptSpheres:
-            s.paint_uniform_color(COLOR_GREEN)
+        pcd.colors = o3d.Vector3dVector(colors)
 
-    def addPoints(self, pts, radius = None):
-        pOriginal = np.array(self.pts)
-        pNew = np.array(pts)
+        self.vis.add_geometry(pcd)
+        self.objects.append(pcd)
+        return pcd, len(self.objects) - 1
 
-        if False: #pOriginal.shape[0]:
-            self.pts = np.vstack((pOriginal, pNew))
-        else:
-            self.pts = pNew
+    def addCylinder(self, start, end, color=[0.9, 0.0, 0.3], radius = None):
+        start = np.array(start)
+        end = np.array(end)
 
-        self.ptSpheres = self.make(radius)
-        for s in self.ptSpheres:
-            self.vis.add_geometry(s)
-
-
-    def make(self, radius):
-        """Make spheres for each point"""
-        pts = self.pts
-
+        defaultCylinderResolution = 16
+        DEFAULT_CYLINDER_RADIUS = 0.005
         if radius is None:
-            radius = np.zeros(self.pts.shape[0]) + 0.05
+            radius = DEFAULT_CYLINDER_RADIUS
 
-        obj = []
-        for i in range(pts.shape[0]):
-            center = pts[i,:]
-            sphere = o3d.create_mesh_sphere(radius[i], 12).transform(pose(center))
-            sphere.paint_uniform_color(COLOR_GREEN)
-            sphere.compute_vertex_normals()
-            obj.append(sphere)
-        return obj
+        length = np.linalg.norm(start - end)
+        n = (end - start) / length
+        phi = np.arccos(n[2])
+        theta = np.arctan2(n[1], n[0])
+
+        theta_quat = Quaternion(axis=[0, 0, 1], angle=theta)
+        vprime = theta_quat.rotate([0, 1., 0.])
+        phi_quat = Quaternion(axis=vprime, angle=phi)
+        rot = phi_quat.rotation_matrix
+
+        cyl = o3d.create_mesh_cylinder(radius, length, resolution=defaultCylinderResolution)
+        cyl = cyl.transform(pose(np.array((start + end) / 2.0), rot))
+        cyl.paint_uniform_color(color)
+        cyl.compute_vertex_normals()
+
+        self.vis.add_geometry(cyl)
+        self.objects.append(cyl)
+        return cyl, len(self.objects) - 1
+
+    def addSphere(self, point, radius, color = COLOR_GREEN):
+        """Make a sphere at point"""
+
+        defaultSphereSegments = 12
+        sphere = o3d.create_mesh_sphere(radius, defaultSphereSegments).transform(pose(point))
+        sphere.paint_uniform_color(color)
+        sphere.compute_vertex_normals()
+
+        self.vis.add_geometry(sphere)
+        self.objects.append(sphere)
+        return sphere, len(self.objects) - 1
+
+    def addSpheres(self, points, radii, color = COLOR_GREEN):
+        """Make a sphere at point"""
+        defaultSphereSegments = 12
+        if type(radii) == float:
+            radii = np.zeros_like(points[:,0]) + radii
+
+        spheres = []
+        for index in range(points.shape[0]):
+            sphere, index = self.addSphere(points[index,:], radii[index], color)
+            spheres.append(sphere)
+
+        return spheres, len(self.objects) - 1
+
+    def removeObject(self, index):
+        print("Removing object {}".format(index))
+        self.vis.remove_geometry(self.objects[index])
+
+if __name__ == '__main__':
+
+    MV = ModelView()
+
+    N = 10
+    pts0 = np.random.random((N, 3))
+    colors = np.random.random((N, 3))
+    pcd_points, pIndex = MV.addPoints(pts0, colors)
+    print("Added object index = {}".format(pIndex))
+    MV.updateNonBlocking()
+
+    N = 10
+    pts = np.random.random((N, 3))
+    colors = [0,1,1]
+    pcd_points, pIndex = MV.addPoints(pts, colors)
+    print("Added object index = {}".format(pIndex))
+    MV.updateNonBlocking()
+
+    point = [0,0,0]
+    radius = 0.1
+    color = [1, 0, 0]
+    pcd_sphere, sIndex = MV.addSphere(point, radius, color)
+    print("Added object index = {}".format(sIndex))
+
+    start = [1,0,0]
+    end = [2, 0,0]
+    radius = 0.2
+    color = [0.5, 0, 0.7]
+    pcd_cylinder, cIndex = MV.addCylinder(start, end, color, radius)
+    print("Added object index = {}".format(cIndex))
+    MV.updateNonBlocking()
+
+    # for ifor in range(100):
+    #     time.sleep(0.05)
+    #     MV.updateNonBlocking()
+
+    MV.removeObject(0)
+    MV.addSpheres(pts0, 0.1)
+
+    for ifor in range(100):
+        time.sleep(0.05)
+        MV.updateNonBlocking()
+
+
+
+
+
