@@ -10,6 +10,7 @@ Non-blocking updates work, but then the mouse rotate events are not processed.
 
 import open3d as o3d
 import numpy as np
+import math
 
 def pose(xyz, rot = None):
     m = np.identity(4)
@@ -51,7 +52,7 @@ class ModelView():
         for s in self.ptSpheres:
             s.paint_uniform_color(COLOR_GREEN)
 
-    def addPoints(self, pts, radius = None):
+    def addPoints(self, pts, radius = None, color = COLOR_GREEN):
         pOriginal = np.array(self.pts)
         pNew = np.array(pts)
 
@@ -60,12 +61,12 @@ class ModelView():
         else:
             self.pts = pNew
 
-        self.ptSpheres = self.make(radius)
+        self.ptSpheres = self.make(radius, color)
         for s in self.ptSpheres:
             self.vis.add_geometry(s)
 
 
-    def make(self, radius):
+    def make(self, radius, color = COLOR_GREEN):
         """Make spheres for each point"""
         pts = self.pts
 
@@ -76,7 +77,28 @@ class ModelView():
         for i in range(pts.shape[0]):
             center = pts[i,:]
             sphere = o3d.create_mesh_sphere(radius[i], 12).transform(pose(center))
-            sphere.paint_uniform_color(COLOR_GREEN)
+            sphere.paint_uniform_color(color)
             sphere.compute_vertex_normals()
             obj.append(sphere)
         return obj
+
+    def addTube(self, start, end, radius, color=COLOR_GREEN):
+        # Determine length and direction of tube
+        vec = np.subtract(end, start)
+        height = math.sqrt(np.dot(vec, vec))
+        norm_vec = vec / height
+
+        # Find axis of rotation, angle of rotation, create vector that encodes both
+        perp = np.cross([0, 0, 1], norm_vec)
+        dot = np.dot([0, 0, 1], norm_vec)
+        angle = math.acos(dot)
+        perp = perp * angle
+
+        # Move end of cylinder to origin, rotate it, then translate to start pt.
+        cyl = o3d.create_mesh_cylinder(radius, height)\
+            .translate([0, 0, height/2])\
+            .rotate(perp, center=False, type=o3d.RotationType.AxisAngle)\
+            .translate(start)
+        cyl.paint_uniform_color(color)
+        cyl.compute_vertex_normals()
+        self.vis.add_geometry(cyl)
