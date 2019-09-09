@@ -86,11 +86,6 @@ def calcSpot(mins, maxs, depth):
     return [av[0], av[1], depth]
 
 class Dice():
-    # Vectors
-    V1 = np.identity(3)
-    V2 = V1[:, [1, 2, 0]]
-    V3 = V1[:, [2, 0, 1]]
-    VV = [V1, V2, V3]
 
     def __init__(self, fileIn, fileOut, samples, model):
         self.samples = samples
@@ -107,7 +102,7 @@ class Dice():
         count = 0
         fortyFive = np.pi/4
         for theta in [0]:
-            eRange = [np.pi/2]
+            eRange = [0*np.pi/2]
 
             for elevation in eRange:
                 vectors = makeVectors(theta, elevation)

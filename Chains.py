@@ -78,9 +78,11 @@ class Chains:
             for link in chain:
                 p1i = link.index
                 p2i = link.nextIndex
-                pts.add(p1i)
-                pts.add(p2i)
-                MV.addCylinder(self.centers[p1i, :], self.centers[p2i, :], color = [0.1,0.1,0.1], radius = 0.02)
+                if not link.noHead:
+                    pts.add(p1i)
+                # pts.add(p2i)
+                if not link.noTail:
+                    MV.addCylinder(self.centers[p1i, :], self.centers[p2i, :], color = [0.1,0.1,0.1], radius = 0.02)
             centers = self.centers[list(pts), :]
             MV.addSpheres(centers, radii=0.03, color=np.random.random(3))
 
@@ -103,6 +105,13 @@ class Chains:
             count += 1
             assert count < 100, "Really? {} merges. Probably something wrong".format(count)
         print("")
+
+    def removeShort(self, N):
+        chains = []
+        for chain in self.chains:
+            if len(chain) >= N:
+                chains.append(chain)
+        self.chains = chains
 
     def update(self):
         """Done at the beginning of an operation to ensure fresh data"""
@@ -289,7 +298,10 @@ class Chains:
                 links.append(link)
 
             else:
-                self.consumed.add(index)
+                if index not in self.consumed:
+                    link = Link(index, None, None, None, self.radii[index], self.centers[index])
+                    links.append(link)
+                    self.consumed.add(index)
                 done = True
 
             if nearestNeighbor in self.consumed:
@@ -337,7 +349,7 @@ class Chains:
         Find the one with the minimum distance.
         Return that as the next link.
         """
-        angularThreshold = np.cos(45 * np.pi/180)
+        angularThreshold = np.cos(65 * np.pi/180)
 
         if forward:
             direction = previousDirection
@@ -384,8 +396,20 @@ class Link():
         self.nextIndex = nearestNeighbor
         self.direction = np.copy(nearestDirection)
 
+    @property
+    def noTail(self):
+        if self.nextIndex is None:
+            return True
+        else:
+            return False
 
 
+    @property
+    def noHead(self):
+        if self.index is None:
+            return True
+        else:
+            return False
 
 
 # def makeStraight(df, viewer):
@@ -506,6 +530,7 @@ if __name__ == '__main__':
     superPoints.load(pair[1])
 
     C = Chains(superPoints)
+    C.removeShort(N=3)
 
     view = False
     if view:

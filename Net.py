@@ -19,7 +19,7 @@ def get_args():
     parser.add_argument("--conf_threshold", type=float, default=0.8)
     parser.add_argument("--nms_threshold", type=float, default=0.5)
     parser.add_argument("--pre_trained_model_type", type=str, choices=["model", "params"], default="model")
-    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/test_freshModelB")
+    parser.add_argument("--pre_trained_model_path", type=str, default="trained_models/test_freshModelC")
     parser.add_argument("--input", type=str, default="test_images/boiler")
     parser.add_argument("--output", type=str, default="test_images/boiler")
 
@@ -32,6 +32,7 @@ class Yolo():
         if torch.cuda.is_available():
             if opt.pre_trained_model_type == "model":
                 model = torch.load(opt.pre_trained_model_path)
+                print("Loading model: {}".format(opt.pre_trained_model_path))
             else:
                 model = Yolo(80)
                 model.load_state_dict(torch.load(opt.pre_trained_model_path))
