@@ -83,21 +83,22 @@ class ModelView():
         return obj
 
     def addTube(self, start, end, radius, color=COLOR_GREEN):
-        # Determine length and direction of tube
-        vec = np.subtract(end, start)
-        height = math.sqrt(np.dot(vec, vec))
-        norm_vec = vec / height
+        # Determine length and normalized direction of the tube
+        tube_vec = np.subtract(end, start)
+        height = math.sqrt(np.dot(tube_vec, tube_vec))
+        tube_vec /= height
 
-        # Find axis of rotation, angle of rotation, create vector that encodes both
-        perp = np.cross([0, 0, 1], norm_vec)
-        dot = np.dot([0, 0, 1], norm_vec)
+        # Find the axis of rotation, angle of rotation, and create vector that encodes both
+        perpendicular = np.cross([0, 0, 1], tube_vec)
+        perpendicular /= math.sqrt(np.dot(perpendicular, perpendicular))
+        dot = np.dot([0, 0, 1], tube_vec)
         angle = math.acos(dot)
-        perp = perp * angle
+        perpendicular = perpendicular * angle
 
         # Move end of cylinder to origin, rotate it, then translate to start pt.
         cyl = o3d.create_mesh_cylinder(radius, height)\
             .translate([0, 0, height/2])\
-            .rotate(perp, center=False, type=o3d.RotationType.AxisAngle)\
+            .rotate(perpendicular, center=False, type=o3d.RotationType.AxisAngle)\
             .translate(start)
         cyl.paint_uniform_color(color)
         cyl.compute_vertex_normals()
