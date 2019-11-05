@@ -10,6 +10,7 @@ Non-blocking updates work, but then the mouse rotate events are not processed.
 
 import open3d as o3d
 import numpy as np
+from numpy.linalg import norm
 import math
 
 def pose(xyz, rot = None):
@@ -65,7 +66,6 @@ class ModelView():
         for s in self.ptSpheres:
             self.vis.add_geometry(s)
 
-
     def make(self, radius, color = COLOR_GREEN):
         """Make spheres for each point"""
         pts = self.pts
@@ -90,7 +90,7 @@ class ModelView():
 
         # Find the axis of rotation, angle of rotation, and create vector that encodes both
         perpendicular = np.cross([0, 0, 1], tube_vec)
-        perpendicular /= math.sqrt(np.dot(perpendicular, perpendicular))
+        perpendicular = perpendicular / norm(perpendicular)
         dot = np.dot([0, 0, 1], tube_vec)
         angle = math.acos(dot)
         perpendicular = perpendicular * angle
@@ -103,3 +103,19 @@ class ModelView():
         cyl.paint_uniform_color(color)
         cyl.compute_vertex_normals()
         self.vis.add_geometry(cyl)
+
+    def addTorus(self, center, normal, torus_radius, tube_radius, color=COLOR_GREEN):
+        # Find the axis of rotation, angle of rotation, and create vector that encodes both
+        perpendicular = np.cross([0, 0, 1], normal)
+        perpendicular = perpendicular / norm(perpendicular)
+        dot = np.dot([0, 0, 1], normal)
+        angle = math.acos(dot)
+        perpendicular = perpendicular * angle
+
+        # Move end of cylinder to origin, rotate it, then translate to start pt.
+        torus = o3d.create_mesh_torus(torus_radius, tube_radius, 20, 8)\
+            .rotate(perpendicular, center=False, type=o3d.RotationType.AxisAngle)\
+            .translate(center)
+        torus.paint_uniform_color(color)
+        torus.compute_vertex_normals()
+        self.vis.add_geometry(torus)
